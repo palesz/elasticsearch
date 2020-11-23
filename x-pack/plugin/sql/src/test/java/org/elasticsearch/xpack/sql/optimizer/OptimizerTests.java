@@ -35,6 +35,8 @@ import org.elasticsearch.xpack.ql.expression.predicate.operator.comparison.Equal
 import org.elasticsearch.xpack.ql.expression.predicate.operator.comparison.GreaterThan;
 import org.elasticsearch.xpack.ql.expression.predicate.operator.comparison.GreaterThanOrEqual;
 import org.elasticsearch.xpack.ql.expression.predicate.operator.comparison.LessThan;
+import org.elasticsearch.xpack.ql.expression.predicate.operator.comparison.LessThanOrEqual;
+import org.elasticsearch.xpack.ql.expression.predicate.operator.comparison.NotEquals;
 import org.elasticsearch.xpack.ql.expression.predicate.operator.comparison.NullEquals;
 import org.elasticsearch.xpack.ql.expression.predicate.regex.RLike;
 import org.elasticsearch.xpack.ql.expression.predicate.regex.RLikePattern;
@@ -50,9 +52,11 @@ import org.elasticsearch.xpack.ql.plan.logical.LogicalPlan;
 import org.elasticsearch.xpack.ql.plan.logical.OrderBy;
 import org.elasticsearch.xpack.ql.plan.logical.Project;
 import org.elasticsearch.xpack.ql.tree.Source;
+import org.elasticsearch.xpack.ql.type.DataType;
 import org.elasticsearch.xpack.ql.type.DataTypes;
 import org.elasticsearch.xpack.ql.type.EsField;
 import org.elasticsearch.xpack.ql.util.CollectionUtils;
+import org.elasticsearch.xpack.ql.util.DateUtils;
 import org.elasticsearch.xpack.ql.util.StringUtils;
 import org.elasticsearch.xpack.sql.analysis.analyzer.Analyzer.PruneSubqueryAliases;
 import org.elasticsearch.xpack.sql.expression.function.aggregate.Avg;
@@ -118,10 +122,17 @@ import org.elasticsearch.xpack.sql.plan.logical.SubQueryAlias;
 import org.elasticsearch.xpack.sql.plan.logical.command.ShowTables;
 import org.elasticsearch.xpack.sql.session.EmptyExecutable;
 
+import javax.xml.crypto.Data;
 import java.lang.reflect.Constructor;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Stack;
+import java.util.function.Supplier;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -141,6 +152,7 @@ import static org.elasticsearch.xpack.ql.tree.Source.EMPTY;
 import static org.elasticsearch.xpack.ql.type.DataTypes.BOOLEAN;
 import static org.elasticsearch.xpack.ql.type.DataTypes.BYTE;
 import static org.elasticsearch.xpack.ql.type.DataTypes.DATETIME;
+import static org.elasticsearch.xpack.ql.type.DataTypes.DOUBLE;
 import static org.elasticsearch.xpack.ql.type.DataTypes.INTEGER;
 import static org.elasticsearch.xpack.ql.type.DataTypes.KEYWORD;
 import static org.elasticsearch.xpack.ql.type.DataTypes.TEXT;
@@ -149,6 +161,7 @@ import static org.elasticsearch.xpack.sql.type.SqlDataTypes.DATE;
 import static org.elasticsearch.xpack.sql.util.DateUtils.UTC;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 
 public class OptimizerTests extends ESTestCase {
 
@@ -764,6 +777,136 @@ public class OptimizerTests extends ESTestCase {
     //
 
     // Conjunction
+    
+    private static class BinaryComparisonTestTreeGenerator {
+        private int level = 0;
+        private final Stack<Object> contextStack = new Stack<>();
+        
+        @SuppressWarnings("unchecked") 
+        private <T> T context() {
+            return (T) contextStack.peek();
+        }
+        
+        private <T> T withContext(Supplier<?> context, Supplier<T> s) {
+            contextStack.push(context.get());
+            T t = s.get();
+            contextStack.pop();
+            return t;
+        }
+        
+        private <T> T noDeeperThan(int maxLevel, Supplier<T> s, Supplier<T> leafValue) {
+            level++;
+            T t = leafValue.get();
+            if (level <= maxLevel) {
+                t = s.get();
+            }
+            level--;
+            return t;
+        }
+        
+        static final int INT_RANGE = 100;
+        static final double DOUBLE_RANGE = INT_RANGE;
+        
+        public ZoneId zoneId() {
+            return DateUtils.UTC;
+        }
+        
+        public DataType dataType() {
+            return randomFrom(INTEGER, DOUBLE, KEYWORD); 
+        }
+        
+        public Expression field(DataType dataType) {
+            String name = dataType.name() + "_" + randomInt(2);
+            return new FieldAttribute(EMPTY, name, new EsField(name + "f", dataType, emptyMap(), true));
+        }
+        
+        public Literal literal(DataType dataType) {
+            return Map.<DataType, Supplier<Literal>>of(
+                INTEGER, () -> new Literal(EMPTY, randomIntBetween(-INT_RANGE, INT_RANGE), INTEGER),
+                DOUBLE, () -> new Literal(EMPTY, randomDoubleBetween(-DOUBLE_RANGE, DOUBLE_RANGE, false), DOUBLE),
+                //DATETIME, () -> new Literal(EMPTY, randomDoubleBetween(-DOUBLE_RANGE, DOUBLE_RANGE, false), DATETIME),
+                KEYWORD, () -> new Literal(EMPTY, ((Integer)randomIntBetween(-INT_RANGE, INT_RANGE)).toString(), KEYWORD)
+            ).get(dataType).get();
+        }
+        
+        public Expression fieldOrLiteral(DataType dataType, int percentField) {
+            return randomIntBetween(1, 100) <= percentField ? field(dataType) : literal(dataType);
+        }
+        
+        public Expression mostlyField() {
+            return fieldOrLiteral(context(), 90);
+        }
+        
+        public Expression mostlyLiteral() {
+            return fieldOrLiteral(context(), 10);
+        }
+        
+        public Expression binaryComparison() {
+            List<Supplier<Expression>> suppliers = Arrays.asList(
+                () -> new LessThan(EMPTY, mostlyField(), mostlyLiteral(), zoneId()),
+                () -> new LessThanOrEqual(EMPTY, mostlyField(), mostlyLiteral(), zoneId()), 
+                () -> new NullEquals(EMPTY, mostlyField(), mostlyLiteral(), zoneId()), 
+                () -> new Equals(EMPTY, mostlyField(), mostlyLiteral(), zoneId()), 
+                () -> new NotEquals(EMPTY, mostlyField(), mostlyLiteral(), zoneId()), 
+                () -> new GreaterThanOrEqual(EMPTY, mostlyField(), mostlyLiteral(), zoneId()), 
+                () -> new GreaterThan(EMPTY, mostlyField(), mostlyLiteral(), zoneId())
+                );
+            return withContext(this::dataType, randomFrom(suppliers));
+        }
+        
+        public Expression range() {
+            DataType d = dataType();
+            return new Range(EMPTY, field(d), literal(d), randomBoolean(), literal(d), randomBoolean(), zoneId());
+        }
+        
+        public Expression and() {
+            return new And(EMPTY, booleanExpression(), booleanExpression());
+        }
+
+        public Expression or() {
+            return new Or(EMPTY, booleanExpression(), booleanExpression());
+        }
+
+        @SuppressWarnings("unchecked") 
+        public Expression booleanExpression() {
+            return noDeeperThan(randomIntBetween(2,10),
+                () -> {
+                    Supplier<Expression> s = randomFrom(this::binaryComparison, this::range, this::and, this::or);
+                    return s.get();
+                },
+                () -> new Literal(EMPTY, randomBoolean(), BOOLEAN));
+        }
+        
+        public Map<FieldAttribute, Literal> assignRandomValuesToFields(Expression tree) {
+            HashMap<FieldAttribute, Literal> map = new HashMap<>();
+            tree.forEachUp(f -> map.computeIfAbsent(f, field -> literal(field.dataType())), FieldAttribute.class);
+            return map;
+        }
+        
+        public static Expression replaceFields(Expression tree, java.util.function.Function<FieldAttribute, Literal> replaceFn) {
+            return tree.transformUp(replaceFn, FieldAttribute.class);
+        }
+    }
+    
+    @com.carrotsearch.randomizedtesting.annotations.Repeat(iterations = 1000)
+    public void testRandomTestingCombineBinaryComparisons() {
+        BinaryComparisonTestTreeGenerator generator = new BinaryComparisonTestTreeGenerator();
+        Expression tree = generator.booleanExpression();
+        Map<FieldAttribute, Literal> randomFieldValues = generator.assignRandomValuesToFields(tree);
+        
+        Expression optimizedTree = new CombineBinaryComparisons().rule(tree);
+        System.out.println(tree.nodeString());
+        System.out.println(optimizedTree.nodeString());
+        
+        Expression treeFoldable = BinaryComparisonTestTreeGenerator.replaceFields(tree, randomFieldValues::get);
+        Expression optimizedTreeFoldable = BinaryComparisonTestTreeGenerator.replaceFields(optimizedTree, randomFieldValues::get);
+
+        System.out.println(treeFoldable.nodeString());
+        System.out.println(optimizedTreeFoldable.nodeString());
+        
+        assertTrue(tree.semanticEquals(optimizedTree));
+        assertEquals(treeFoldable.fold(), optimizedTreeFoldable.fold());
+    }
 
     // a != NULL AND a > 1 AND a < 5 AND a == 10  -> (a != NULL AND a == 10) AND 1 <= a < 5
     public void testCombineUnbalancedComparisonsMixedWithEqualsIntoRange() {

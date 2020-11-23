@@ -303,6 +303,10 @@ public abstract class Node<T extends Node<T>> {
     public String toString() {
         return treeString(new StringBuilder(), 0, new BitSet()).toString();
     }
+    
+    public String treeString() {
+        return treeString(new StringBuilder(), 0, new BitSet()).toString();
+    }
 
     /**
      * Render this {@link Node} as a tree like

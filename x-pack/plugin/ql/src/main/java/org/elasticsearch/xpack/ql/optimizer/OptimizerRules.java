@@ -1008,7 +1008,7 @@ public final class OptimizerRules {
             for (int i = 0; i < bcs.size(); i ++) {
                 BinaryComparison bc = bcs.get(i);
 
-                if (notEquals.left().semanticEquals(bc.left())) {
+                if (true || notEquals.left().semanticEquals(bc.left())) {
                     if (bc instanceof LessThan || bc instanceof LessThanOrEqual) {
                         comp = bc.right().foldable() ? BinaryComparison.compare(neqVal, bc.right().fold()) : null;
                         if (comp != null) {
