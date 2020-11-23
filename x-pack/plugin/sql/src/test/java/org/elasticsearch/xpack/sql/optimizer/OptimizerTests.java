@@ -126,7 +126,10 @@ import org.elasticsearch.xpack.sql.session.EmptyExecutable;
 import javax.xml.crypto.Data;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.time.Clock;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -817,7 +820,7 @@ public class OptimizerTests extends ESTestCase {
         }
         
         public DataType dataType() {
-            return randomFrom(INTEGER, DOUBLE, KEYWORD); 
+            return randomFrom(INTEGER, DOUBLE, KEYWORD, DATETIME); 
         }
         
         public Expression field(DataType dataType) {
@@ -826,10 +829,12 @@ public class OptimizerTests extends ESTestCase {
         }
         
         public Literal literal(DataType dataType) {
+            // TODO literals should be generated from ALL the possibly convertible types, not just the specified
             return Map.<DataType, Supplier<Literal>>of(
                 INTEGER, () -> new Literal(EMPTY, randomIntBetween(-INT_RANGE, INT_RANGE), INTEGER),
                 DOUBLE, () -> new Literal(EMPTY, randomDoubleBetween(-DOUBLE_RANGE, DOUBLE_RANGE, false), DOUBLE),
-                //DATETIME, () -> new Literal(EMPTY, randomDoubleBetween(-DOUBLE_RANGE, DOUBLE_RANGE, false), DATETIME),
+                DATETIME, () -> new Literal(EMPTY, 
+                    Clock.system(zoneId()).instant().plus(randomIntBetween(-INT_RANGE, INT_RANGE), ChronoUnit.DAYS).toString(), KEYWORD),
                 KEYWORD, () -> new Literal(EMPTY, ((Integer)randomIntBetween(-INT_RANGE, INT_RANGE)).toString(), KEYWORD)
             ).get(dataType).get();
         }
@@ -839,11 +844,11 @@ public class OptimizerTests extends ESTestCase {
         }
         
         public Expression mostlyField() {
-            return fieldOrLiteral(context(), 90);
+            return fieldOrLiteral(context(), 95);
         }
         
         public Expression mostlyLiteral() {
-            return fieldOrLiteral(context(), 10);
+            return fieldOrLiteral(context(), 5);
         }
         
         public Expression binaryComparison() {
@@ -906,10 +911,10 @@ public class OptimizerTests extends ESTestCase {
         Expression tree = generator.and();
         Set<FieldAttribute> fields = BinaryComparisonTestTreeGenerator.extractFields(tree);
         Expression optimizedTree = new CombineBinaryComparisons().rule(tree);
-        Set<FieldAttribute> fieldsInOptimizedTree = BinaryComparisonTestTreeGenerator.extractFields(tree);
+        Set<FieldAttribute> fieldsInOptimizedTree = BinaryComparisonTestTreeGenerator.extractFields(optimizedTree);
         String reason = String.format("%15s: %s\n%15s: %s\n", "Original", tree.nodeString(),
             "Optimized", optimizedTree.nodeString());
-        assertThat(reason, fields, equalTo(fieldsInOptimizedTree));
+        assertThat(reason, fieldsInOptimizedTree, equalTo(fields));
 
         for (int i = 0; i < 1000; i ++) {
             Map<FieldAttribute, Literal> randomFieldValues = generator.assignRandomValuesToFields(fields);
