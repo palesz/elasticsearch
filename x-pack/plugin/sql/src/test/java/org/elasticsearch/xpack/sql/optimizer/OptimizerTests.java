@@ -5,6 +5,7 @@
  */
 package org.elasticsearch.xpack.sql.optimizer;
 
+import org.elasticsearch.client.watcher.WatchStatus;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.xpack.ql.QlIllegalArgumentException;
 import org.elasticsearch.xpack.ql.expression.Alias;
@@ -124,13 +125,16 @@ import org.elasticsearch.xpack.sql.session.EmptyExecutable;
 
 import javax.xml.crypto.Data;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
 import java.util.function.Supplier;
 
@@ -160,6 +164,7 @@ import static org.elasticsearch.xpack.sql.SqlTestUtils.literal;
 import static org.elasticsearch.xpack.sql.type.SqlDataTypes.DATE;
 import static org.elasticsearch.xpack.sql.util.DateUtils.UTC;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 
@@ -816,7 +821,7 @@ public class OptimizerTests extends ESTestCase {
         }
         
         public Expression field(DataType dataType) {
-            String name = dataType.name() + "_" + randomInt(2);
+            String name = dataType.name() + "_" + randomInt(1);
             return new FieldAttribute(EMPTY, name, new EsField(name + "f", dataType, emptyMap(), true));
         }
         
@@ -869,18 +874,25 @@ public class OptimizerTests extends ESTestCase {
 
         @SuppressWarnings("unchecked") 
         public Expression booleanExpression() {
-            return noDeeperThan(randomIntBetween(2,10),
+            return noDeeperThan(randomIntBetween(2,5),
                 () -> {
-                    Supplier<Expression> s = randomFrom(this::binaryComparison, this::range, this::and, this::or);
+                    Supplier<Expression> s = randomFrom(this::binaryComparison, this::range, this::and/*, this::or*/);
                     return s.get();
                 },
                 () -> new Literal(EMPTY, randomBoolean(), BOOLEAN));
         }
         
-        public Map<FieldAttribute, Literal> assignRandomValuesToFields(Expression tree) {
-            HashMap<FieldAttribute, Literal> map = new HashMap<>();
-            tree.forEachUp(f -> map.computeIfAbsent(f, field -> literal(field.dataType())), FieldAttribute.class);
-            return map;
+        public static Set<FieldAttribute> extractFields(Expression tree) {
+            Set<FieldAttribute> fields = new HashSet<>();
+            tree.forEachUp(fields::add, FieldAttribute.class);
+            return fields;
+        }
+        
+        
+        public Map<FieldAttribute, Literal> assignRandomValuesToFields(Set<FieldAttribute> fields) {
+            HashMap<FieldAttribute, Literal> values = new HashMap<>();
+            fields.forEach(f -> values.computeIfAbsent(f, field -> literal(field.dataType())));
+            return values;
         }
         
         public static Expression replaceFields(Expression tree, java.util.function.Function<FieldAttribute, Literal> replaceFn) {
@@ -891,21 +903,33 @@ public class OptimizerTests extends ESTestCase {
     @com.carrotsearch.randomizedtesting.annotations.Repeat(iterations = 1000)
     public void testRandomTestingCombineBinaryComparisons() {
         BinaryComparisonTestTreeGenerator generator = new BinaryComparisonTestTreeGenerator();
-        Expression tree = generator.booleanExpression();
-        Map<FieldAttribute, Literal> randomFieldValues = generator.assignRandomValuesToFields(tree);
-        
+        Expression tree = generator.and();
+        Set<FieldAttribute> fields = BinaryComparisonTestTreeGenerator.extractFields(tree);
         Expression optimizedTree = new CombineBinaryComparisons().rule(tree);
-        System.out.println(tree.nodeString());
-        System.out.println(optimizedTree.nodeString());
-        
-        Expression treeFoldable = BinaryComparisonTestTreeGenerator.replaceFields(tree, randomFieldValues::get);
-        Expression optimizedTreeFoldable = BinaryComparisonTestTreeGenerator.replaceFields(optimizedTree, randomFieldValues::get);
+        Set<FieldAttribute> fieldsInOptimizedTree = BinaryComparisonTestTreeGenerator.extractFields(tree);
+        String reason = String.format("%15s: %s\n%15s: %s\n", "Original", tree.nodeString(),
+            "Optimized", optimizedTree.nodeString());
+        assertThat(reason, fields, equalTo(fieldsInOptimizedTree));
 
-        System.out.println(treeFoldable.nodeString());
-        System.out.println(optimizedTreeFoldable.nodeString());
-        
-        assertTrue(tree.semanticEquals(optimizedTree));
-        assertEquals(treeFoldable.fold(), optimizedTreeFoldable.fold());
+        for (int i = 0; i < 1000; i ++) {
+            Map<FieldAttribute, Literal> randomFieldValues = generator.assignRandomValuesToFields(fields);
+            Expression treeFoldable = BinaryComparisonTestTreeGenerator.replaceFields(tree, randomFieldValues::get);
+            Expression optimizedTreeFoldable = BinaryComparisonTestTreeGenerator.replaceFields(optimizedTree, randomFieldValues::get);
+            try {
+                //assertTrue(tree.semanticEquals(optimizedTree));
+                Object originalFold = treeFoldable.fold();
+                Object optimizedFold = optimizedTreeFoldable.fold();
+                assertEquals(reason, originalFold, optimizedFold);
+            } catch (Throwable e) {
+                System.out.println("Original expression vs optimized: -------");
+                System.out.println(tree.nodeString());
+                System.out.println(optimizedTree.nodeString());
+                System.out.println("With replaced values: -------");
+                System.out.println(treeFoldable.nodeString());
+                System.out.println(optimizedTreeFoldable.nodeString());
+                throw e;
+            }
+        }        
     }
 
     // a != NULL AND a > 1 AND a < 5 AND a == 10  -> (a != NULL AND a == 10) AND 1 <= a < 5
