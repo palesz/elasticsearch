@@ -6,7 +6,6 @@
 package org.elasticsearch.xpack.ql.expression.function;
 
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.xpack.ql.ParsingException;
 import org.elasticsearch.xpack.ql.QlIllegalArgumentException;
 import org.elasticsearch.xpack.ql.expression.Expression;
@@ -142,10 +141,10 @@ public class FunctionRegistry {
         Check.isTrue(names.length > 0, "At least one name must be provided for the function");
         String primaryName = names[0];
         List<String> aliases = Arrays.asList(names).subList(1, names.length);
-        FunctionDefinition.Builder realBuilder = (uf, cfg, extras) -> {
-            if (CollectionUtils.isEmpty(extras) == false) {
+        FunctionDefinition.Builder realBuilder = (uf, cfg, context) -> {
+            if (context != null) {
                 throw new ParsingException(uf.source(), "Unused parameters {} detected when building [{}]",
-                    Arrays.toString(extras),
+                    context,
                     primaryName);
             }
             try {

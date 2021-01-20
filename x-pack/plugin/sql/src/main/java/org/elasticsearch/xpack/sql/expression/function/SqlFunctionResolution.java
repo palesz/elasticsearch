@@ -22,7 +22,7 @@ public enum SqlFunctionResolution implements FunctionResolutionStrategy {
         @Override
         public Function buildResolved(UnresolvedFunction uf, Configuration cfg, FunctionDefinition def) {
             if (def instanceof SqlFunctionDefinition) {
-                return ((SqlFunctionDefinition) def).builder().build(uf, cfg, true);
+                return ((SqlFunctionDefinition) def).builder().build(uf, cfg, new SqlFunctionRegistry.Context(true));
             }
             throw new ParsingException(uf.source(), "Cannot use {} on non-SQL function {}", name(), def);
         }
@@ -39,7 +39,7 @@ public enum SqlFunctionResolution implements FunctionResolutionStrategy {
         @Override
         public Function buildResolved(UnresolvedFunction uf, Configuration cfg, FunctionDefinition def) {
             if (isValidAlternative(def)) {
-                return ((SqlFunctionDefinition) def).builder().build(uf, cfg);
+                return ((SqlFunctionDefinition) def).builder().build(uf, cfg, new SqlFunctionRegistry.Context(false));
             }
             return uf.withMessage("Invalid datetime field [" + uf.name() + "]. Use any datetime function.");
         }

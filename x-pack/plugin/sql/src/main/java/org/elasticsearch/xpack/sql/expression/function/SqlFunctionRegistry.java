@@ -5,7 +5,6 @@
  */
 package org.elasticsearch.xpack.sql.expression.function;
 
-import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.xpack.ql.ParsingException;
 import org.elasticsearch.xpack.ql.QlIllegalArgumentException;
 import org.elasticsearch.xpack.ql.expression.Expression;
@@ -19,7 +18,6 @@ import org.elasticsearch.xpack.ql.session.Configuration;
 import org.elasticsearch.xpack.ql.tree.Source;
 import org.elasticsearch.xpack.ql.type.DataType;
 import org.elasticsearch.xpack.ql.util.Check;
-import org.elasticsearch.xpack.sql.SqlIllegalArgumentException;
 import org.elasticsearch.xpack.sql.expression.function.aggregate.Avg;
 import org.elasticsearch.xpack.sql.expression.function.aggregate.First;
 import org.elasticsearch.xpack.sql.expression.function.aggregate.Kurtosis;
@@ -310,6 +308,14 @@ public class SqlFunctionRegistry extends FunctionRegistry {
     protected interface SqlFunctionBuilder {
         Function build(Source source, List<Expression> children, Configuration cfg, Boolean distinct);
     }
+    
+    public static class Context {
+        private final boolean distinct;
+        
+        public Context(boolean distinct) {
+            this.distinct = distinct;
+        }
+    }
 
     /**
      * Main method to register a function.
@@ -322,24 +328,14 @@ public class SqlFunctionRegistry extends FunctionRegistry {
         Check.isTrue(names.length > 0, "At least one name must be provided for the function");
         String primaryName = names[0];
         List<String> aliases = Arrays.asList(names).subList(1, names.length);
-        FunctionDefinition.Builder realBuilder = (uf, cfg, extras) -> {
+        FunctionDefinition.Builder realBuilder = (uf, cfg, context) -> {
             try {
-                return builder.build(uf.source(), uf.children(), cfg, asBool(extras));
+                return builder.build(uf.source(), uf.children(), cfg, ((Context) context).distinct);
             } catch (QlIllegalArgumentException e) {
                 throw new ParsingException(uf.source(), "error building [" + primaryName + "]: " + e.getMessage(), e);
             }
         };
         return new SqlFunctionDefinition(primaryName, unmodifiableList(aliases), function, datetime, realBuilder);
-    }
-
-    private static Boolean asBool(Object[] extras) {
-        if (CollectionUtils.isEmpty(extras)) {
-            return null;
-        }
-        if (extras.length != 1 || (extras[0] instanceof Boolean) == false) {
-            throw new SqlIllegalArgumentException("Invalid number and types of arguments given to function definition");
-        }
-        return (Boolean) extras[0];
     }
 
     /**

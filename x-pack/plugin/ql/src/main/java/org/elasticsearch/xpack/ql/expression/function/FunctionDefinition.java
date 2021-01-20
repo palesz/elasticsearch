@@ -17,7 +17,10 @@ public class FunctionDefinition {
      */
     @FunctionalInterface
     public interface Builder {
-        Function build(UnresolvedFunction uf, Configuration configuration, Object... extras);
+        Function build(UnresolvedFunction uf, Configuration configuration, Object context);
+        default Function build(UnresolvedFunction uf, Configuration configuration) {
+            return this.build(uf, configuration, null);
+        }
     }
 
     private final String name;
