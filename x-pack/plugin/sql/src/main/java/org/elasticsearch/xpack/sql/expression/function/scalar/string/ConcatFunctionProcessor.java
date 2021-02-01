@@ -9,6 +9,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xpack.ql.expression.gen.processor.BinaryProcessor;
 import org.elasticsearch.xpack.ql.expression.gen.processor.Processor;
+import org.elasticsearch.xpack.ql.util.StringUtils;
 import org.elasticsearch.xpack.sql.SqlIllegalArgumentException;
 
 import java.io.IOException;
@@ -44,8 +45,14 @@ public class ConcatFunctionProcessor extends BinaryProcessor {
      * Used in Painless scripting
      */
     public static Object process(Object source1, Object source2) {
-        if (source1 == null || source2 == null) {
-            return null;
+        if (source1 == null && source2 == null) {
+            return StringUtils.EMPTY;
+        }
+        if (source1 == null) {
+            return source2;
+        }
+        if (source2 == null) {
+            return source1;
         }
         if (!(source1 instanceof String || source1 instanceof Character)) {
             throw new SqlIllegalArgumentException("A string/char is required; received [{}]", source1);

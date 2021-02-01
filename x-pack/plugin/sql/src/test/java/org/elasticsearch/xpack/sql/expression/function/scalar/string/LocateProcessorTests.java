@@ -48,8 +48,8 @@ public class LocateProcessorTests extends AbstractWireSerializingTestCase<Locate
     public void testLocateFunctionWithEdgeCasesInputs() {
         assertEquals(4, new Locate(EMPTY, l("bar"), l("foobarbar"), l(null)).makePipe().asProcessor().process(null));
         assertNull(new Locate(EMPTY, l("bar"), l(null), l(3)).makePipe().asProcessor().process(null));
-        assertEquals(0, new Locate(EMPTY, l(null), l("foobarbar"), l(null)).makePipe().asProcessor().process(null));
-        assertEquals(0, new Locate(EMPTY, l(null), l("foobarbar"), l(null)).makePipe().asProcessor().process(null));
+        assertNull(new Locate(EMPTY, l(null), l("foobarbar"), l(null)).makePipe().asProcessor().process(null));
+        assertEquals(0, new Locate(EMPTY, l("bar"), l("foobarbar"), l(null)).makePipe().asProcessor().process(null));
 
         assertEquals(1, new Locate(EMPTY, l("foo"), l("foobarbar"), l(null)).makePipe().asProcessor().process(null));
         assertEquals(1, new Locate(EMPTY, l('o'), l('o'), l(null)).makePipe().asProcessor().process(null));
