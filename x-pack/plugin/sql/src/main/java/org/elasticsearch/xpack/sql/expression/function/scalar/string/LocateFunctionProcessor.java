@@ -46,17 +46,17 @@ public class LocateFunctionProcessor implements Processor {
             return doProcess(pattern().process(input), input().process(input), start().process(input));
         }
     }
-    
+
     public static Integer doProcess(Object pattern, Object input) {
         return doProcess(pattern, input, 1);
     }
-
+    
     public static Integer doProcess(Object pattern, Object input, Object start) {
         if (pattern == null || input == null) {
             return null;
         }
         if (start == null) {
-            return null; // MySQL behaviour is return 0
+            return 0;
         }
         if (!(input instanceof String || input instanceof Character)) {
             throw new SqlIllegalArgumentException("A string/char is required; received [{}]", input);
@@ -71,7 +71,12 @@ public class LocateFunctionProcessor implements Processor {
         String stringInput = input instanceof Character ? input.toString() : (String) input;
         String stringPattern = pattern instanceof Character ? pattern.toString() : (String) pattern;
 
-        return 1 + stringInput.indexOf(stringPattern, ((Number) start).intValue() - 1);
+        int startIndex = ((Number) start).intValue() - 1;
+        if (startIndex < 0 || startIndex >= stringInput.length()) {
+            return 0;
+        }
+        
+        return 1 + stringInput.indexOf(stringPattern, startIndex);
     }
 
     @Override
