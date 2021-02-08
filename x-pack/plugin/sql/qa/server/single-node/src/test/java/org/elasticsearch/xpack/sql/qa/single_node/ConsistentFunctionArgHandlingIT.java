@@ -16,17 +16,19 @@ import org.elasticsearch.xpack.sql.qa.jdbc.JdbcIntegrationTestCase;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.ResultSet;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static java.lang.String.join;
+import static java.time.OffsetDateTime.now;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
@@ -50,6 +52,67 @@ import static org.hamcrest.collection.IsEmptyCollection.empty;
 public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
 
     private static final List<Fn> FUNCTION_CALLS_TO_TEST = asList(
+
+        // Date functions
+        new Fn("CURRENT_DATE").aliases("CURDATE", "TODAY"),
+        new Fn("CURRENT_TIME", /* precision */ 5).aliases("CURTIME"),
+        new Fn("CURRENT_TIMESTAMP", /* precision */ 4).aliases("NOW"),
+        new Fn("DAY_NAME", now()).aliases("DAYNAME"),
+        new Fn("DAY_OF_MONTH", now()).aliases("DAYOFMONTH", "DAY", "DOM"),
+        new Fn("DAY_OF_WEEK", now()).aliases("DAYOFWEEK", "DOW"),
+        new Fn("DAY_OF_YEAR", now()).aliases("DAYOFYEAR", "DOY"),
+        new Fn("DATEADD", "weekday", 2, now()).aliases("DATE_ADD", "TIMESTAMPADD", "TIMESTAMP_ADD"),
+        new Fn("DATEDIFF", "day", now().minusDays(500), now()).aliases("DATE_DIFF", "TIMESTAMPDIFF", "TIMESTAMP_DIFF"),
+        new Fn("DATE_PARSE", "2020", "yyyy"),
+        new Fn("DATEPART", "weekday", now()).aliases("DATE_PART"),
+        new Fn("DATETIME_FORMAT", now(), "yyyy"),
+        new Fn("DATETIME_PARSE", "07/04/2020 10:20:30.123", "dd/MM/uuuu HH:mm:ss.SSS"),
+        new Fn("DATETRUNC", "month", now()).aliases("DATE_TRUNC"),
+        new Fn("FORMAT", now(), "dd/MM/YYYY HH:mm:ss.ff"),
+        new Fn("TO_CHAR", now(), "DD/MM/YYYY HH24:MI:SS.FF2"),
+        new Fn("HOUR_OF_DAY", now()).aliases("HOUR"),
+        new Fn("ISO_DAY_OF_WEEK", now()).aliases("ISODAYOFWEEK", "ISODOW", "IDOW"),
+        new Fn("ISO_WEEK_OF_YEAR", now()).aliases("ISOWEEKOFYEAR", "ISOWEEK", "IWOY", "IW"),
+        new Fn("MINUTE_OF_DAY", now()),
+        new Fn("MINUTE_OF_HOUR", now()).aliases("MINUTE"),
+        new Fn("MONTH_NAME", now()).aliases("MONTHNAME"),
+        new Fn("MONTH_OF_YEAR", now()).aliases("MONTH"),
+        new Fn("SECOND_OF_MINUTE", now()).aliases("SECOND"),
+        new Fn("TIME_PARSE", "10:20:30.123", "HH:mm:ss.SSS"),
+        new Fn("QUARTER", now()),
+        new Fn("YEAR", now()),
+        new Fn("WEEK_OF_YEAR", now()).aliases("WEEK"),
+        // Math functions
+        new Fn("ABS", -10.23),
+        new Fn("ACOS", 123.12),
+        new Fn("ASIN", 123.12),
+        new Fn("ATAN", 123.12),
+        new Fn("ATAN2", 123.12, 12.34),
+        new Fn("CBRT", 123.12),
+        new Fn("CEIL", -134.56).aliases("CEILING"),
+        new Fn("COS", 123.12),
+        new Fn("COSH", 123.12),
+        new Fn("COT", 123.12),
+        new Fn("DEGREES", 123.12),
+        new Fn("E"),
+        new Fn("EXP", 5.67),
+        new Fn("EXPM1", 5.67),
+        new Fn("FLOOR", -134.43),
+        new Fn("LOG", 5),
+        new Fn("LOG10", 5),
+        new Fn("MOD", 1234, 56),
+        new Fn("PI"),
+        new Fn("POWER", 2.34, 5.6),
+        new Fn("RADIANS", 123.45),
+        new Fn("RANDOM", 1234.56).aliases("RAND"),
+        new Fn("ROUND", -1234.56),
+        new Fn("SIGN", -1234.56).aliases("SIGNUM"),
+        new Fn("SIN", 123.45),
+        new Fn("SINH", 123.45),
+        new Fn("SQRT", 123.45),
+        new Fn("TAN", 123.45),
+        new Fn("TRUNCATE", 1234.567, 2).aliases("TRUNC"),
+        // String functions
         new Fn("ASCII", "foobar"),
         new Fn("BIT_LENGTH", "foobar"),
         new Fn("CHAR", 66),
@@ -132,8 +195,13 @@ public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
     @ParametersFactory
     public static Iterable<Object[]> testFactory() {
         List<Object[]> tests = new ArrayList<>();
-        tests.add(new Object[] { null });
-        FUNCTION_CALLS_TO_TEST.forEach(f -> tests.add(new Object[] { f }));
+        final String functionToDebug = null;
+        if (functionToDebug != null) {
+            FUNCTION_CALLS_TO_TEST.stream().filter(f -> f.name.equals(functionToDebug)).forEach(f -> tests.add(new Object[] { f }));
+        } else {
+            tests.add(new Object[] { null });
+            FUNCTION_CALLS_TO_TEST.forEach(f -> tests.add(new Object[] { f }));
+        }
         return tests;
     }
 
@@ -150,6 +218,7 @@ public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
         }
 
         assumeFalse("Ignored", fn.ignored);
+        assumeFalse("Function without arguments, nothing to test", fn.arguments.isEmpty());
 
         // create a record for the function, where all the example (non-null) argument values are stored in fields
         // so the field mapping is automatically set up
@@ -164,11 +233,14 @@ public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
         List<List<Object>> possibleValuesPerArguments = fn.arguments.stream().map(a -> asList(a.exampleValue, null)).collect(toList());
         List<List<Source>> acceptedSourcesPerArguments = fn.arguments.stream().map(a -> asList(a.acceptedSources)).collect(toList());
 
+        // will initialize once to use the same timezone across all the requests
+        final Connection jdbcConnection = esJdbc();
+
         iterateAllPermutations(possibleValuesPerArguments, argValues -> {
             // we only want to check the function calls that have at least a single NULL argument
-            if (argValues.stream().noneMatch(Objects::isNull)) {
+            /*if (argValues.stream().noneMatch(Objects::isNull)) {
                 return;
-            }
+            }*/
 
             List<Tuple<String, Object>> results = new ArrayList<>();
 
@@ -192,18 +264,22 @@ public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
                 }
 
                 final String functionCall = functionName + "(" + join(", ", functionCallArgs) + ")";
-                final String query = "SELECT " + functionCall + " FROM " + indexName + " WHERE docId = '" + testDocId + "'";
-                ResultSet retVal = esJdbc().createStatement().executeQuery(query);
+                final String query = "SELECT " + functionCall + ", " + join(", ", functionCallArgs) + " FROM " + indexName + " WHERE docId = '" + testDocId + "'";
+                logger.info(query);
+                ResultSet retVal = jdbcConnection.createStatement().executeQuery(query);
 
                 assertTrue(retVal.next());
                 results.add(tuple(functionName + "(" + join(", ", functionCallArgsForAssert) + ")", retVal.getObject(1)));
+                for (int i = 1; i <= retVal.getMetaData().getColumnCount(); i++) {
+                    logger.info(retVal.getMetaData().getColumnName(i) + ": " + resultValueAsString(retVal.getObject(i)));
+                }
                 // only a single row should be returned
                 assertFalse(retVal.next());
 
                 if (results.stream().map(Tuple::v2).distinct().count() > 1) {
-                    int maxResultWidth = results.stream().map(Tuple::v2).mapToInt(o -> asLiteralInQuery(o).length()).max().orElse(20);
+                    int maxResultWidth = results.stream().map(Tuple::v2).mapToInt(o -> resultValueAsString(o).length()).max().orElse(20);
                     String resultsAsString = results.stream()
-                        .map(r -> String.format(Locale.ROOT, "%2$-" + maxResultWidth + "s // %1$s", r.v1(), asLiteralInQuery(r.v2())))
+                        .map(r -> String.format(Locale.ROOT, "%2$-" + maxResultWidth + "s // %1$s", r.v1(), resultValueAsString(r.v2())))
                         .collect(joining("\n"));
                     fail("The result of the last call differs from the other calls:\n" + resultsAsString);
                 }
@@ -218,9 +294,13 @@ public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
         int idx = 0;
         for (Argument arg : fn.arguments) {
             idx += 1;
-            testDoc.put(argPrefix + idx, arg.exampleValue);
+            Object valueToIndex = arg.exampleValue;
+            if (valueToIndex instanceof OffsetDateTime) {
+                valueToIndex = String.valueOf(valueToIndex);
+            }
+            testDoc.put(argPrefix + idx, valueToIndex);
             // first set the same value, so the mapping is populated for the null columns
-            testDoc.put(nullArgPrefix + idx, arg.exampleValue);
+            testDoc.put(nullArgPrefix + idx, valueToIndex);
         }
         index(indexName, functionName, body -> body.mapContents(testDoc));
 
@@ -249,15 +329,23 @@ public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
 
         assertThat("Some functions are not covered by this test", functions, empty());
     }
+    
+    private static String resultValueAsString(Object value) {
+        return asLiteralInQuery(value) + " [" + (value == null ? null : value.getClass().getSimpleName()) + "]"; 
+    }
 
     private static String asLiteralInQuery(Object argValue) {
         String argInQuery;
         if (argValue == null) {
             argInQuery = "NULL";
         } else {
-            argInQuery = String.valueOf(argValue);
+            
             if (argValue instanceof String) {
-                argInQuery = "'" + argInQuery + "'";
+                argInQuery = "'" + argValue + "'";
+            } else if (argValue instanceof OffsetDateTime) {
+                argInQuery = "'" + ((OffsetDateTime) argValue) + "'::datetime";
+            } else {
+                argInQuery = String.valueOf(argValue);
             }
         }
         return argInQuery;
