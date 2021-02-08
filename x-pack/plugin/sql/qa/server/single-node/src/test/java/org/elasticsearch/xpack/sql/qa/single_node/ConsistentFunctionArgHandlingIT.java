@@ -266,15 +266,22 @@ public class ConsistentFunctionArgHandlingIT extends JdbcIntegrationTestCase {
                 final String functionCall = functionName + "(" + join(", ", functionCallArgs) + ")";
                 final String query = "SELECT " + functionCall + ", " + join(", ", functionCallArgs) + " FROM " + indexName + " WHERE docId = '" + testDocId + "'";
                 logger.info(query);
-                ResultSet retVal = jdbcConnection.createStatement().executeQuery(query);
+                Object result = null;
+                try {
+                    ResultSet retVal = jdbcConnection.createStatement().executeQuery(query);
 
-                assertTrue(retVal.next());
-                results.add(tuple(functionName + "(" + join(", ", functionCallArgsForAssert) + ")", retVal.getObject(1)));
-                for (int i = 1; i <= retVal.getMetaData().getColumnCount(); i++) {
-                    logger.info(retVal.getMetaData().getColumnName(i) + ": " + resultValueAsString(retVal.getObject(i)));
+                    assertTrue(retVal.next());
+                    result = retVal.getObject(1);
+                    for (int i = 1; i <= retVal.getMetaData().getColumnCount(); i++) {
+                        logger.info(retVal.getMetaData().getColumnName(i) + ": " + resultValueAsString(retVal.getObject(i)));
+                    }
+                    // only a single row should be returned
+                    assertFalse(retVal.next());
+                } catch (Exception ex) {
+                    result = ex.getMessage();
+                } finally {
+                    results.add(tuple(functionName + "(" + join(", ", functionCallArgsForAssert) + ")", result));
                 }
-                // only a single row should be returned
-                assertFalse(retVal.next());
 
                 if (results.stream().map(Tuple::v2).distinct().count() > 1) {
                     int maxResultWidth = results.stream().map(Tuple::v2).mapToInt(o -> resultValueAsString(o).length()).max().orElse(20);
