@@ -2648,4 +2648,12 @@ public class QueryTranslatorTests extends ESTestCase {
             "( SELECT int AS i FROM test ) AS s " +
             "ORDER BY s.i > 10");
     }
+    
+    public void testSubqueryWithRealiasedOrderBy() throws Exception {
+        PhysicalPlan p = optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) ORDER BY j");
+    }
+
+    public void testSubqueryWithRealiasedGroupBy() throws Exception {
+        PhysicalPlan p = optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j");
+    }
 }

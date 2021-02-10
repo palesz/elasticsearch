@@ -222,8 +222,9 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
             AttributeMap.Builder<Expression> builder = AttributeMap.builder();
             // collect aliases
             plan.forEachExpressionUp(Alias.class, a -> builder.put(a.toAttribute(), a.child()));
-            final Map<Attribute, Expression> collectRefs = builder.build();
-            java.util.function.Function<ReferenceAttribute, Expression> replaceReference = r -> collectRefs.getOrDefault(r, r);
+            final AttributeMap<Expression> collectRefs = builder.build();
+            java.util.function.Function<ReferenceAttribute, Expression> recursiveReplaceReference = 
+                r -> recursiveReplaceReference(collectRefs, r);
 
             plan = plan.transformUp(p -> {
                 // non attribute defining plans get their references removed
@@ -232,18 +233,28 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
                     if (p instanceof Aggregate) {
                         Aggregate agg = (Aggregate) p;
                         List<Expression> newGrouping = new ArrayList<>(agg.groupings().size());
-                        agg.groupings().forEach(e -> newGrouping.add(e.transformUp(ReferenceAttribute.class, replaceReference)));
+                        agg.groupings().forEach(e -> newGrouping.add(e.transformUp(ReferenceAttribute.class, recursiveReplaceReference)));
                         if (agg.groupings().equals(newGrouping) == false) {
                             p = new Aggregate(agg.source(), agg.child(), newGrouping, agg.aggregates());
                         }
                     } else {
-                        p = p.transformExpressionsOnly(ReferenceAttribute.class, replaceReference);
+                        p = p.transformExpressionsOnly(ReferenceAttribute.class, recursiveReplaceReference);
                     }
                 }
                 return p;
             });
 
             return plan;
+        }
+
+        private static Expression recursiveReplaceReference(AttributeMap<Expression> collectRefs, ReferenceAttribute r) {
+            while (true) {
+                Expression expression = collectRefs.getOrDefault(r, r);
+                if (expression == r || (expression instanceof ReferenceAttribute) == false) {
+                    return expression;
+                }
+                r = (ReferenceAttribute) expression;
+            }
         }
     }
 
