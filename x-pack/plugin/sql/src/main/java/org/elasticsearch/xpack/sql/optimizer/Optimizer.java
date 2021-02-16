@@ -223,8 +223,9 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
             // collect aliases
             plan.forEachExpressionUp(Alias.class, a -> builder.put(a.toAttribute(), a.child()));
             final AttributeMap<Expression> collectRefs = builder.build();
-            java.util.function.Function<ReferenceAttribute, Expression> recursiveReplaceReference = 
-                r -> recursiveReplaceReference(collectRefs, r);
+            java.util.function.Function<ReferenceAttribute, Expression> recursiveReplaceReference =
+                r -> replaceReferenceRecursively(collectRefs, r);
+            java.util.function.Function<ReferenceAttribute, Expression> replaceReference = r -> collectRefs.getOrDefault(r, r);
 
             plan = plan.transformUp(p -> {
                 // non attribute defining plans get their references removed
@@ -247,7 +248,7 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
             return plan;
         }
 
-        private static Expression recursiveReplaceReference(AttributeMap<Expression> collectRefs, ReferenceAttribute r) {
+        private static Expression replaceReferenceRecursively(AttributeMap<Expression> collectRefs, ReferenceAttribute r) {
             while (true) {
                 Expression expression = collectRefs.getOrDefault(r, r);
                 if (expression == r || (expression instanceof ReferenceAttribute) == false) {

@@ -83,13 +83,17 @@ import org.elasticsearch.xpack.sql.types.SqlTypesTests;
 import org.elasticsearch.xpack.sql.util.DateUtils;
 import org.junit.BeforeClass;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -2649,11 +2653,54 @@ public class QueryTranslatorTests extends ESTestCase {
             "ORDER BY s.i > 10");
     }
     
+    @FunctionalInterface
+    public interface CheckedRunnable {
+        void run() throws Exception;
+    }
+    
     public void testSubqueryWithRealiasedOrderBy() throws Exception {
-        PhysicalPlan p = optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) ORDER BY j");
+        List<String> queries = asList(
+            "SELECT i AS j FROM ( SELECT int AS i FROM test) ORDER BY j",
+            "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) ORDER BY k",
+            "SELECT int_group AS g, min_date AS d\n" +
+                "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " +
+                "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" +
+                "ORDER BY g DESC",
+            "SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j",
+            "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) GROUP BY k"
+        );
+        Map<String, Throwable> exceptions = new LinkedHashMap<>();
+        for (String q : queries) {
+            try {
+                optimizeAndPlan(q);
+            } catch (Throwable t) {
+                exceptions.put(q, t);
+            }
+        }
+        if (exceptions.isEmpty() == false) {
+            StringJoiner joiner = new StringJoiner("\n\n");
+            for (Map.Entry<String, Throwable> entry : exceptions.entrySet()) {
+                StringWriter out = new StringWriter();
+                entry.getValue().printStackTrace(new PrintWriter(out, true));
+                logger.error("Query optimization failed for query:\n" + entry.getKey(), entry.getValue());
+                joiner.add(String.format(Locale.ROOT, "Query optimization failed:\n%s\nwith exception: %s", entry.getKey(), entry.getValue()));
+            }
+            joiner.add(exceptions.size() + "/" + queries.size() + " query optimizations failed, see logs for details.");
+            fail(joiner.toString());
+        }
+    }
+
+    public void testIncorrectSubqueryReference() throws Exception {
+        //optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) AS s1) AS s2 ORDER BY i");
+        //optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) AS s1) AS s2 ORDER BY s1.i");
+        //optimizeAndPlan("SELECT date, MAX(int) AS i FROM test GROUP BY date ORDER BY i DESC");
+        //optimizeAndPlan("SELECT date, MAX(int) AS i FROM test WHERE int > 2 GROUP BY date ORDER BY i DESC");
+        //optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT date, MAX(int) AS i FROM test GROUP BY date)) ORDER BY k DESC");
+        //PhysicalPlan p = optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) AS s1) ORDER BY j");
+        optimizeAndPlan("SELECT g FROM (SELECT date AS f, int AS g FROM test) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC");
     }
 
     public void testSubqueryWithRealiasedGroupBy() throws Exception {
-        PhysicalPlan p = optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j");
+        
     }
 }
