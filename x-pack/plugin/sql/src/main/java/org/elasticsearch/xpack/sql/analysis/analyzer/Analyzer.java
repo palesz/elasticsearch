@@ -124,7 +124,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                 //new ImplicitCasting()
                 );
         Batch finish = new Batch("Finish Analysis",
-                new PruneSubqueryAliases(),
+                new PruneSubqueryAliases(), // why not move to the optimizer (otherwise cannot differentiate between subselect WHERE and HAVING)
                 new AddMissingEqualsToBoolField(),
                 CleanAliases.INSTANCE
                 );
@@ -1223,7 +1223,8 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
 
         @Override
         protected LogicalPlan rule(SubQueryAlias alias) {
-            return alias.child();
+            return alias.child(); // maybe we should have a project instead
+            // return new Project(alias.source(), alias.child(), alias.output());
         }
 
         @Override

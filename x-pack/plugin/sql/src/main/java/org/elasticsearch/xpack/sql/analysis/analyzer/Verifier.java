@@ -375,7 +375,7 @@ public final class Verifier {
                 Set<Expression> unsupported = new LinkedHashSet<>();
                 Expression condition = f.condition();
                 // variation of checkGroupMatch customized for HAVING, which requires just aggregations
-                // TODO this has to be fixed 
+                // TODO this has to be fixed , there should be a subquery (or project) between the filter and the aggregate here
                 condition.collectFirstChildren(c -> checkGroupByHavingHasOnlyAggs(c, missing, unsupported, attributeRefs));
 
                 if (missing.isEmpty() == false) {

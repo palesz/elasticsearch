@@ -31,7 +31,10 @@ FROM (
 )
 ORDER BY e DESC;
 
-basicGroupByGroupBy-Ignore
+basicFilterAfterGroupBy-Ignore
+SELECT s2 AS s3 FROM (SELECT s AS s2 FROM ( SELECT salary AS s FROM test_emp) GROUP BY s2) WHERE s2 < 5 ORDER BY s3 DESC NULLS last;
+
+basicGroupByAfterGroupBy-Ignore
 SELECT g, MAX(last_name) as l
 FROM
 (

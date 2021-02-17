@@ -2667,8 +2667,6 @@ public class QueryTranslatorTests extends ESTestCase {
                 "ORDER BY g DESC",
             "SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j",
             "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) GROUP BY k",
-            // TODO
-            "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j) WHERE j < 5",
             "SELECT g FROM (SELECT date AS f, int AS g FROM test) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC"
         );
         Map<String, Throwable> exceptions = new LinkedHashMap<>();
@@ -2690,6 +2688,11 @@ public class QueryTranslatorTests extends ESTestCase {
             joiner.add(exceptions.size() + "/" + queries.size() + " query optimizations failed, see logs for details.");
             fail(joiner.toString());
         }
+    }
+    
+    @AwaitsFix(bugUrl = "filter after group by but not having")
+    public void testFilterAfterGroupBy() {
+        optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j) WHERE j < 5");
     }
 
     @AwaitsFix(bugUrl = "group by flattening")

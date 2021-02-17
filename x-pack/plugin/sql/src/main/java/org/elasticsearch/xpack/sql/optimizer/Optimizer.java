@@ -123,15 +123,15 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
 
     @Override
     protected Iterable<RuleExecutor<LogicalPlan>.Batch> batches() {
+        Batch refs = new Batch("Replace References", Limiter.ONCE,
+            new ReplaceReferenceAttributeWithSource() // TODO why not move to the Analyzer?
+        );
+        
         Batch substitutions = new Batch("Substitutions", Limiter.ONCE,
                 new RewritePivot(),
                 new ReplaceRegexMatch(),
                 new ReplaceAggregatesWithLiterals(),
                 new ReplaceCountInLocalRelation()
-                );
-
-        Batch refs = new Batch("Replace References", Limiter.ONCE,
-                new ReplaceReferenceAttributeWithSource()
                 );
 
         Batch operators = new Batch("Operator Optimization",
@@ -183,7 +183,7 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
                 CleanAliases.INSTANCE,
                 new SetAsOptimized());
 
-        return Arrays.asList(substitutions, refs, operators, aggregate, local, label);
+        return Arrays.asList(refs, substitutions, operators, aggregate, local, label);
     }
 
     static class RewritePivot extends OptimizerRule<Pivot> {
