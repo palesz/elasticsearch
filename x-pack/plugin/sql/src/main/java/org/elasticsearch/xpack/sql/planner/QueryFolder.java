@@ -571,6 +571,7 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
                             matchingGroup = groupingContext.groupFor(target);
                         }
                         // attributes can only refer to declared groups
+                        // TODO remove, a Function cannot be an Attribute
                         if (target instanceof Attribute) {
                             Check.notNull(matchingGroup, "Cannot find group [{}]", Expressions.name(target));
                             queryC = queryC.addColumn(new GroupByRef(matchingGroup.id(), null, isDateBased(target.dataType())), id);
@@ -600,10 +601,12 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
                 else {
                     GroupByKey matchingGroup = null;
                     if (groupingContext != null) {
-                        matchingGroup = groupingContext.groupFor(target);
+                        final Expression deeplyResolvedTarget = queryC.aliases().resolveRecursively(target, target);
+                        matchingGroup = groupingContext.groupFor(deeplyResolvedTarget);
                         Check.notNull(matchingGroup, "Cannot find group [{}]", Expressions.name(ne));
 
-                        queryC = queryC.addColumn(new GroupByRef(matchingGroup.id(), null, isDateBased(ne.dataType())), id);
+                        final String deepTargetId = Expressions.id(deeplyResolvedTarget);
+                        queryC = queryC.addColumn(new GroupByRef(matchingGroup.id(), null, isDateBased(ne.dataType())), deepTargetId);
                     }
                     // fallback
                     else {

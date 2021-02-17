@@ -162,6 +162,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                 Attribute a = resolveAgainstList(ua, plan.output());
                 return a != null ? a : e;
             }
+            // we should also unwrap the reference attributes
             return e;
         });
     }

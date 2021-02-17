@@ -2653,21 +2653,23 @@ public class QueryTranslatorTests extends ESTestCase {
             "ORDER BY s.i > 10");
     }
     
-    @FunctionalInterface
-    public interface CheckedRunnable {
-        void run() throws Exception;
-    }
-    
-    public void testSubqueryWithRealiasedOrderBy() throws Exception {
+    public void testReferenceResolutionInSubqueries() throws Exception {
         List<String> queries = asList(
             "SELECT i AS j FROM ( SELECT int AS i FROM test) ORDER BY j",
             "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) ORDER BY k",
             "SELECT int_group AS g, min_date AS d\n" +
                 "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " +
                 "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" +
+                "ORDER BY d DESC",
+            "SELECT int_group AS g, min_date AS d\n" +
+                "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " +
+                "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" +
                 "ORDER BY g DESC",
             "SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j",
-            "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) GROUP BY k"
+            "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) GROUP BY k",
+            // TODO
+            "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j) WHERE j < 5",
+            "SELECT g FROM (SELECT date AS f, int AS g FROM test) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC"
         );
         Map<String, Throwable> exceptions = new LinkedHashMap<>();
         for (String q : queries) {
@@ -2690,17 +2692,16 @@ public class QueryTranslatorTests extends ESTestCase {
         }
     }
 
-    public void testIncorrectSubqueryReference() throws Exception {
-        //optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) AS s1) AS s2 ORDER BY i");
-        //optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) AS s1) AS s2 ORDER BY s1.i");
-        //optimizeAndPlan("SELECT date, MAX(int) AS i FROM test GROUP BY date ORDER BY i DESC");
-        //optimizeAndPlan("SELECT date, MAX(int) AS i FROM test WHERE int > 2 GROUP BY date ORDER BY i DESC");
-        //optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT date, MAX(int) AS i FROM test GROUP BY date)) ORDER BY k DESC");
-        //PhysicalPlan p = optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) AS s1) ORDER BY j");
-        optimizeAndPlan("SELECT g FROM (SELECT date AS f, int AS g FROM test) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC");
-    }
-
-    public void testSubqueryWithRealiasedGroupBy() throws Exception {
-        
+    @AwaitsFix(bugUrl = "group by flattening")
+    public void testGroupByGroupBy() throws Exception {
+        //optimizeAndPlan("SELECT b, MAX(int) as max_i, MIN(min_f) as min_f\n" 
+        optimizeAndPlan("SELECT b, MAX(int) as max_i\n" 
+            + "FROM\n" + 
+            "(\n" + 
+                "    SELECT b, int, MIN(f) as min_f\n" + 
+                "    FROM (SELECT float AS f, int, bool AS b FROM test)\n" + 
+                "    GROUP BY b, int\n" + ")\n" + 
+            "GROUP BY b\n" + 
+            "ORDER BY b DESC NULLS last");
     }
 }

@@ -263,6 +263,19 @@ public class AttributeMap<E> implements Map<Attribute, E> {
             ? e
             : defaultValue;
     }
+    
+    public E resolveRecursively(Object key, E defaultValue) {
+        while (true) {
+            E val = this.get(key);
+            if (val == null) {
+                return defaultValue;
+            }
+            if ((val instanceof ReferenceAttribute) == false) {
+                return val;
+            }
+            key = val;
+        }
+    }
 
     @Override
     public E put(Attribute key, E value) {

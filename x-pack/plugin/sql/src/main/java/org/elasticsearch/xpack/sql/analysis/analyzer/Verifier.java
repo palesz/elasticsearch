@@ -191,6 +191,7 @@ public final class Verifier {
             // FieldAttribute for example are self replicating.
             plan.forEachExpressionUp(Alias.class, a -> collectRefs.put(a.toAttribute(), a.child()));
 
+            // TODO check everything that gets these attributerefs
             AttributeMap<Expression> attributeRefs = collectRefs.build();
 
             // for filtering out duplicated errors
@@ -313,10 +314,11 @@ public final class Verifier {
                 Map<Expression, Node<?>> missing = new LinkedHashMap<>();
 
                 o.order().forEach(oe -> {
-                    Expression e = oe.child();
+                    Expression e = oe.child(); // TODO here
+                    e = attributeRefs.resolveRecursively(e, e);
 
                     // aggregates are allowed
-                    if (Functions.isAggregate(attributeRefs.getOrDefault(e, e))) {
+                    if (Functions.isAggregate(e)) {
                         return;
                     }
 
@@ -338,7 +340,7 @@ public final class Verifier {
                     //
                     // Also, make sure to compare attributes directly
                     if (e.anyMatch(expression -> Expressions.anyMatch(groupingAndMatchingAggregatesAliases,
-                        g -> expression.semanticEquals(expression instanceof Attribute ? Expressions.attribute(g) : g)))) {
+                        g -> expression.semanticEquals(attributeRefs.resolveRecursively(Expressions.attribute(g), g))))) {
                         return;
                     }
 
@@ -373,6 +375,7 @@ public final class Verifier {
                 Set<Expression> unsupported = new LinkedHashSet<>();
                 Expression condition = f.condition();
                 // variation of checkGroupMatch customized for HAVING, which requires just aggregations
+                // TODO this has to be fixed 
                 condition.collectFirstChildren(c -> checkGroupByHavingHasOnlyAggs(c, missing, unsupported, attributeRefs));
 
                 if (missing.isEmpty() == false) {

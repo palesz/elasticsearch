@@ -312,6 +312,7 @@ public class QueryContainer {
     }
 
     private String aliasName(Attribute attr) {
+        // TODO we get get away without the fieldAlias map (aliases.get(attr) instanceof FieldAttribute)
         if (fieldAlias == null) {
             fieldAlias = new LinkedHashMap<>();
             for (Map.Entry<Attribute, Expression> entry : aliases.entrySet()) {

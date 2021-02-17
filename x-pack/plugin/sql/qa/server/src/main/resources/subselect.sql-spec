@@ -16,11 +16,12 @@ basicGroupBy
 SELECT gender FROM (SELECT first_name AS f, last_name, gender FROM test_emp) GROUP BY gender ORDER BY gender ASC;
 basicGroupByAlias
 SELECT g FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) GROUP BY g ORDER BY g ASC;
-// @AwaitsFix(bugUrl = "follow-up to https://github.com/elastic/elasticsearch/pull/67216")
-basicGroupByWithFilterByAlias-Ignore
+basicGroupByWithFilterByAlias
 SELECT g FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC;
 basicGroupByRealiased
 SELECT g AS h FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) GROUP BY g ORDER BY g DESC NULLS last;
+basicGroupByRealiased2
+SELECT g AS h FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) GROUP BY h ORDER BY h DESC NULLS last;
 basicOrderByRealiased
 SELECT g AS h FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) ORDER BY g DESC NULLS first;
 x
@@ -29,6 +30,17 @@ FROM (
     SELECT emp_no % 2 AS emp_group, MIN(salary) AS min_high_salary FROM test_emp WHERE salary > 50000 GROUP BY emp_group
 )
 ORDER BY e DESC;
+
+basicGroupByGroupBy-Ignore
+SELECT g, MAX(last_name) as l
+FROM
+(
+    SELECT g, last_name, MIN(f) as min_f
+    FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp)
+    GROUP BY g, last_name
+)
+GROUP BY g
+ORDER BY g DESC NULLS last;
 
 countAndComplexCondition
 SELECT COUNT(*) as c FROM (SELECT * FROM test_emp WHERE gender IS NOT NULL) WHERE ABS(salary) > 0 GROUP BY gender ORDER BY gender;
