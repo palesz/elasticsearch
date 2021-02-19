@@ -20,17 +20,18 @@ basicGroupByWithFilterByAlias
 SELECT g FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC;
 basicGroupByRealiased
 SELECT g AS h FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) GROUP BY g ORDER BY g DESC NULLS last;
-basicGroupByRealiased2
+basicGroupByRealiasedTwice
 SELECT g AS h FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) GROUP BY h ORDER BY h DESC NULLS last;
-basicOrderByRealiased
+basicOrderByRealiasedField
 SELECT g AS h FROM (SELECT first_name AS f, last_name, gender AS g FROM test_emp) ORDER BY g DESC NULLS first;
-x
+basicOrderByRealiasedExpression
 SELECT emp_group AS e, min_high_salary AS s
 FROM (
     SELECT emp_no % 2 AS emp_group, MIN(salary) AS min_high_salary FROM test_emp WHERE salary > 50000 GROUP BY emp_group
 )
 ORDER BY e DESC;
 
+// TODO: Need to file an issue for the next two queries
 basicFilterAfterGroupBy-Ignore
 SELECT s2 AS s3 FROM (SELECT s AS s2 FROM ( SELECT salary AS s FROM test_emp) GROUP BY s2) WHERE s2 < 5 ORDER BY s3 DESC NULLS last;
 

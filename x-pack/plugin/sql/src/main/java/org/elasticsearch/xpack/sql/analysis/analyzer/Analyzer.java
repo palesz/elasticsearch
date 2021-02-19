@@ -124,7 +124,8 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                 //new ImplicitCasting()
                 );
         Batch finish = new Batch("Finish Analysis",
-                new PruneSubqueryAliases(), // why not move to the optimizer (otherwise cannot differentiate between subselect WHERE and HAVING)
+                // why not move to the optimizer (otherwise cannot differentiate between subselect WHERE and HAVING)
+                new PruneSubqueryAliases(), 
                 new AddMissingEqualsToBoolField(),
                 CleanAliases.INSTANCE
                 );

@@ -2593,8 +2593,7 @@ public class QueryTranslatorTests extends ESTestCase {
             "WHERE i IS NOT NULL " +
             "ORDER BY i");
     }
-
-    @AwaitsFix(bugUrl = "follow-up to https://github.com/elastic/elasticsearch/pull/67216")
+    
     public void testSubqueryGroupByFilterAndOrderByByAlias() throws Exception {
         PhysicalPlan p = optimizeAndPlan("SELECT i FROM " +
             "( SELECT int AS i FROM test ) " +
@@ -2683,7 +2682,8 @@ public class QueryTranslatorTests extends ESTestCase {
                 StringWriter out = new StringWriter();
                 entry.getValue().printStackTrace(new PrintWriter(out, true));
                 logger.error("Query optimization failed for query:\n" + entry.getKey(), entry.getValue());
-                joiner.add(String.format(Locale.ROOT, "Query optimization failed:\n%s\nwith exception: %s", entry.getKey(), entry.getValue()));
+                joiner.add(String.format(Locale.ROOT, "Query optimization failed:\n%s\nwith exception: %s", 
+                    entry.getKey(), entry.getValue()));
             }
             joiner.add(exceptions.size() + "/" + queries.size() + " query optimizations failed, see logs for details.");
             fail(joiner.toString());
