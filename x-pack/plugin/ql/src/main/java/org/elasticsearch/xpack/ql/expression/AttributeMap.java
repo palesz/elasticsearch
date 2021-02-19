@@ -265,16 +265,12 @@ public class AttributeMap<E> implements Map<Attribute, E> {
     }
     
     public E resolveRecursively(Object key, E defaultValue) {
-        while (true) {
-            E val = this.get(key);
-            if (val == null) {
-                return defaultValue;
-            }
-            if ((val instanceof ReferenceAttribute) == false) {
-                return val;
-            }
-            key = val;
+        E retVal = defaultValue;
+        while (key != null && containsKey(key)) {
+            retVal = this.get(key);
+            key = retVal;
         }
+        return retVal;
     }
 
     @Override
