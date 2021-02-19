@@ -125,6 +125,7 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
     protected Iterable<RuleExecutor<LogicalPlan>.Batch> batches() {
         Batch refs = new Batch("Replace References", Limiter.ONCE,
             new ReplaceReferenceAttributeWithSource() // TODO why not move to the Analyzer?
+            //, new Analyzer.PruneSubqueryAliases()
         );
         
         Batch substitutions = new Batch("Substitutions", Limiter.ONCE,

@@ -258,17 +258,25 @@ public class AttributeMap<E> implements Map<Attribute, E> {
 
     @Override
     public E getOrDefault(Object key, E defaultValue) {
-        E e;
-        return (((e = get(key)) != null) || containsKey(key))
-            ? e
-            : defaultValue;
+        return resolveRecursively(key, defaultValue);
     }
     
     public E resolveRecursively(Object key, E defaultValue) {
         E retVal = defaultValue;
-        while (key != null && containsKey(key)) {
+        E prevRetVal = null;
+        int i = 0;
+        while (containsKey(key)) {
             retVal = this.get(key);
+            if (prevRetVal == retVal) {
+                // no change, let's break the loop
+                break;
+            }
             key = retVal;
+            prevRetVal = retVal;
+            i++;
+            if (i > 10000) {
+                throw new RuntimeException("what???");
+            }
         }
         return retVal;
     }

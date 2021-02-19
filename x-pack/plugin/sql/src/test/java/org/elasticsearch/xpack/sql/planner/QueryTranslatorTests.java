@@ -2693,6 +2693,13 @@ public class QueryTranslatorTests extends ESTestCase {
     @AwaitsFix(bugUrl = "filter after group by but not having")
     public void testFilterAfterGroupBy() {
         optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j) WHERE j < 5");
+        
+        // this one should work because the filter can be pushed down into the aggregation
+        optimizeAndPlan("SELECT int_group AS g, min_date AS d\n" +
+            "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " +
+            "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" +
+            "WHERE g < 1\n" +
+            "ORDER BY g DESC");
     }
 
     @AwaitsFix(bugUrl = "group by flattening")
