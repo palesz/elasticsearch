@@ -62,7 +62,6 @@ import org.elasticsearch.xpack.sql.plan.logical.With;
 import org.elasticsearch.xpack.sql.type.SqlDataTypeConverter;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -72,6 +71,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
@@ -79,7 +79,7 @@ import static org.elasticsearch.xpack.ql.analyzer.AnalyzerRules.AnalyzerRule;
 import static org.elasticsearch.xpack.ql.analyzer.AnalyzerRules.BaseAnalyzerRule;
 import static org.elasticsearch.xpack.ql.util.CollectionUtils.combine;
 
-public class Analyzer extends RuleExecutor<LogicalPlan> {
+public class Analyzer {
     /**
      * Valid functions.
      */
@@ -97,6 +97,9 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
      * The verifier has the role of checking the analyzed tree for failures and build a list of failures.
      */
     private final Verifier verifier;
+    
+    private final PreVerifierStage preVerifierStage = new PreVerifierStage();
+    private final PostVerifierStage postVerifierStage = new PostVerifierStage();
 
     public Analyzer(Configuration configuration, FunctionRegistry functionRegistry, IndexResolution results, Verifier verifier) {
         this.configuration = configuration;
@@ -105,11 +108,13 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
         this.verifier = verifier;
     }
 
-    @Override
-    protected Iterable<RuleExecutor<LogicalPlan>.Batch> batches() {
-        Batch substitution = new Batch("Substitution",
+    public class PreVerifierStage extends RuleExecutor<LogicalPlan> {
+
+        @Override
+        protected Iterable<Batch> batches() {
+            Batch substitution = new Batch("Substitution",
                 new CTESubstitution());
-        Batch resolution = new Batch("Resolution",
+            Batch resolution = new Batch("Resolution",
                 new ResolveTable(),
                 new ResolveRefs(),
                 new ResolveOrdinalInOrderByAndGroupBy(),
@@ -122,14 +127,43 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                 new ResolveAggsInHaving(),
                 new ResolveAggsInOrderBy()
                 //new ImplicitCasting()
-                );
-        Batch finish = new Batch("Finish Analysis",
+            );
+            return asList(substitution, resolution);
+        }
+
+        @Override
+        protected LogicalPlan execute(LogicalPlan plan) {
+            return super.execute(plan);
+        }
+
+        @Override
+        protected ExecutionInfo executeWithInfo(LogicalPlan plan) {
+            return super.executeWithInfo(plan);
+        }
+    }
+
+    public static class PostVerifierStage extends RuleExecutor<LogicalPlan> {
+
+        @Override
+        protected Iterable<Batch> batches() {
+            Batch finish = new Batch("Finish Analysis",
                 // why not move to the optimizer (otherwise cannot differentiate between subselect WHERE and HAVING)
-                new PruneSubqueryAliases(), 
+                new PruneSubqueryAliases(),
                 new AddMissingEqualsToBoolField(),
                 CleanAliases.INSTANCE
-                );
-        return Arrays.asList(substitution, resolution, finish);
+            );
+            return asList(finish);
+        }
+
+        @Override
+        protected LogicalPlan execute(LogicalPlan plan) {
+            return super.execute(plan);
+        }
+
+        @Override
+        protected ExecutionInfo executeWithInfo(LogicalPlan plan) {
+            return super.executeWithInfo(plan);
+        }
     }
 
     public LogicalPlan analyze(LogicalPlan plan) {
@@ -140,19 +174,28 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
         if (plan.analyzed()) {
             return plan;
         }
-        return verify ? verify(execute(plan)) : execute(plan);
+        LogicalPlan analyzedPlan = preVerifierStage.execute(plan);
+        if (verify) {
+            verify(analyzedPlan);
+        }
+        LogicalPlan postVerifierPlan = postVerifierStage.execute(analyzedPlan);
+        return postVerifierPlan;
     }
 
-    public ExecutionInfo debugAnalyze(LogicalPlan plan) {
-        return plan.analyzed() ? null : executeWithInfo(plan);
+    public RuleExecutor<LogicalPlan>.ExecutionInfo debugAnalyze(LogicalPlan plan) {
+        if (plan.analyzed()) {
+            return null;
+        }
+        RuleExecutor<LogicalPlan>.ExecutionInfo e1 = preVerifierStage.executeWithInfo(plan);
+        RuleExecutor<LogicalPlan>.ExecutionInfo e2 = postVerifierStage.executeWithInfo(e1.after());
+        return e1.combine(e2);
     }
 
-    public LogicalPlan verify(LogicalPlan plan) {
+    private void verify(LogicalPlan plan) {
         Collection<Failure> failures = verifier.verify(plan);
         if (failures.isEmpty() == false) {
             throw new VerificationException(failures);
         }
-        return plan;
     }
 
     @SuppressWarnings("unchecked")
@@ -1062,6 +1105,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                     Aggregate tryResolvingCondition = new Aggregate(agg.source(), agg.child(), agg.groupings(),
                             combine(agg.aggregates(), new Alias(f.source(), ".having", condition)));
 
+                    // this is not cool, this line executes a bunch of times
                     tryResolvingCondition = (Aggregate) analyze(tryResolvingCondition, false);
 
                     // if it got resolved
@@ -1211,7 +1255,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                     }
                     left = l == common ? left : new Cast(left.source(), left, common);
                     right = r == common ? right : new Cast(right.source(), right, common);
-                    return e.replaceChildrenSameSize(Arrays.asList(left, right));
+                    return e.replaceChildrenSameSize(asList(left, right));
                 }
             }
 

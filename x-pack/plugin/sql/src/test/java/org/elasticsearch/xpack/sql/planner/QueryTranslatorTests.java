@@ -2656,18 +2656,11 @@ public class QueryTranslatorTests extends ESTestCase {
         List<String> queries = asList(
             "SELECT i AS j FROM ( SELECT int AS i FROM test) ORDER BY j",
             "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) ORDER BY k",
-            "SELECT int_group AS g, min_date AS d\n" +
-                "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " +
-                "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" +
-                "ORDER BY d DESC",
-            "SELECT int_group AS g, min_date AS d\n" +
-                "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " +
-                "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" +
-                "ORDER BY g DESC",
+            "SELECT int_group AS g, min_date AS d\n" + "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " + "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" + "ORDER BY d DESC",
+            "SELECT int_group AS g, min_date AS d\n" + "FROM (\n" + "    SELECT int % 2 AS int_group, MIN(date) AS min_date\n " + "FROM test WHERE date > '1970-01-01'::datetime GROUP BY int_group\n" + ")\n" + "ORDER BY g DESC",
             "SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j",
             "SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) GROUP BY k",
-            "SELECT g FROM (SELECT date AS f, int AS g FROM test) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC"
-        );
+            "SELECT g FROM (SELECT date AS f, int AS g FROM test) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC");
         Map<String, Throwable> exceptions = new LinkedHashMap<>();
         for (String q : queries) {
             try {
@@ -2682,13 +2675,14 @@ public class QueryTranslatorTests extends ESTestCase {
                 StringWriter out = new StringWriter();
                 entry.getValue().printStackTrace(new PrintWriter(out, true));
                 logger.error("Query optimization failed for query:\n" + entry.getKey(), entry.getValue());
-                joiner.add(String.format(Locale.ROOT, "Query optimization failed:\n%s\nwith exception: %s", 
-                    entry.getKey(), entry.getValue()));
+                joiner.add(String.format(Locale.ROOT, "Query optimization failed:\n%s\nwith exception: %s", entry.getKey(), entry.getValue()));
             }
             joiner.add(exceptions.size() + "/" + queries.size() + " query optimizations failed, see logs for details.");
             fail(joiner.toString());
         }
     }
+    
+    //TODO also test: https://github.com/elastic/elasticsearch/issues/69263
     
     @AwaitsFix(bugUrl = "filter after group by but not having")
     public void testFilterAfterGroupBy() {

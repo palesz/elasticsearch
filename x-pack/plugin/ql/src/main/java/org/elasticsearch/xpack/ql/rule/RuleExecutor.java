@@ -125,6 +125,13 @@ public abstract class RuleExecutor<TreeType extends Node<TreeType>> {
         public Map<Batch, List<Transformation>> transformations() {
             return transformations;
         }
+        
+        public ExecutionInfo combine(ExecutionInfo o) {
+            Map<Batch, List<Transformation>> tfs = new LinkedHashMap<>();
+            tfs.putAll(this.transformations);
+            tfs.putAll(o.transformations);
+            return new ExecutionInfo(before, o.after, tfs);
+        }
     }
 
     protected TreeType execute(TreeType plan) {
