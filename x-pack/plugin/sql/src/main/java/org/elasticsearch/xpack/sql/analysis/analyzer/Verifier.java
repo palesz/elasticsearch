@@ -106,6 +106,9 @@ public final class Verifier {
         // start bottom-up
         plan.forEachUp(p -> {
             if (p.analyzed()) {
+                if (true) {
+                    throw new RuntimeException("already analyzed!!!2!");
+                }
                 return;
             }
 
@@ -196,9 +199,12 @@ public final class Verifier {
 
             // for filtering out duplicated errors
             final Set<LogicalPlan> groupingFailures = new LinkedHashSet<>();
-
+            
             plan.forEachDown(p -> {
                 if (p.analyzed()) {
+                    if (true) {
+                        throw new RuntimeException("already analyzed!!!! second");
+                    }
                     return;
                 }
 
