@@ -317,16 +317,16 @@ public final class Verifier {
 
                 o.order().forEach(oe -> {
                     Expression e = oe.child();
-                    e = attributeRefs.getOrDefault(e, e);
+                    final Expression resolvedE = attributeRefs.getOrDefault(e, e);
                     
-                    if (e instanceof Alias || e instanceof ReferenceAttribute) {
+                    if (resolvedE instanceof Alias || resolvedE instanceof ReferenceAttribute) {
                         // keep the Verifier simple without
                         // if this is not possible, the query folder will blow up on it anyways
                         return;
                     }
 
                     // aggregates are allowed
-                    if (Functions.isAggregate(e)) {
+                    if (Functions.isAggregate(resolvedE)) {
                         return;
                     }
 
@@ -347,10 +347,11 @@ public final class Verifier {
                     // e.g.: if "GROUP BY f2(f1(field))" you can "ORDER BY f4(f3(f2(f1(field))))"
                     //
                     // Also, make sure to compare attributes directly
-                    if (e.anyMatch(expression -> Expressions.anyMatch(groupingAndMatchingAggregatesAliases,
+                    if (resolvedE.anyMatch(expression -> Expressions.anyMatch(groupingAndMatchingAggregatesAliases,
                         g -> {
                             Expression resolvedG = attributeRefs.getOrDefault(g, g);
-                            return expression.semanticEquals(expression instanceof Attribute ? Expressions.attribute(resolvedG) : resolvedG);
+                            resolvedG = expression instanceof Attribute ? Expressions.attribute(resolvedG) : resolvedG;
+                            return expression.semanticEquals(resolvedG);
                         }))) {
                         return;
                     }
