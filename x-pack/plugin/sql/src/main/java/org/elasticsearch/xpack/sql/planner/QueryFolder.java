@@ -93,6 +93,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.elasticsearch.xpack.ql.util.CollectionUtils.combine;
 import static org.elasticsearch.xpack.sql.expression.function.grouping.Histogram.DAY_INTERVAL;
@@ -439,7 +440,12 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
 
             // build the group aggregation
             // NB: any reference in grouping is already "optimized" by its source so there's no need to look for aliases
-            GroupingContext groupingContext = groupBy(a.groupings());
+            // TODO this is incorrect here, should not depend on the optimizations and should resolve it here 
+            final QueryContainer finalQueryC = queryC;
+            List<? extends Expression> groupings = a.groupings().stream().map(g -> finalQueryC.aliases().getOrDefault(g, g))
+                .collect(Collectors.toList());
+            
+            GroupingContext groupingContext = groupBy(groupings);
 
             if (groupingContext != null) {
                 queryC = queryC.addGroups(groupingContext.groupMap.values());
@@ -468,12 +474,9 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
                 //   SELECT CAST(AVG(salary)) ... GROUP BY salary
                 //   SELECT AVG(salary) + SIN(MIN(salary)) ... GROUP BY salary
 
-                Expression target = ne;
-
                 // unwrap aliases since it's the children we are interested in
-                if (ne instanceof Alias) {
-                    target = ((Alias) ne).child();
-                }
+                final Expression nonResolvedTarget = (ne instanceof Alias) ? ((Alias) ne).child() : ne;
+                final Expression target = queryC.aliases().getOrDefault(nonResolvedTarget, nonResolvedTarget);
 
                 id = Expressions.id(target);
 
@@ -614,7 +617,7 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
             // If we're only selecting literals, we have to still execute the aggregation to create
             // the correct grouping buckets, in order to return the appropriate number of rows
             if (a.aggregates().stream().allMatch(e -> e.anyMatch(Expression::foldable))) {
-                for (Expression grouping : a.groupings()) {
+                for (Expression grouping : groupings) {
                     GroupByKey matchingGroup = groupingContext.groupFor(grouping);
                     queryC = queryC.addColumn(new GroupByRef(matchingGroup.id(), null, false), id);
                 }

@@ -317,9 +317,16 @@ public final class Verifier {
 
                 o.order().forEach(oe -> {
                     Expression e = oe.child();
+                    e = attributeRefs.getOrDefault(e, e);
+                    
+                    if (e instanceof Alias || e instanceof ReferenceAttribute) {
+                        // keep the Verifier simple without
+                        // if this is not possible, the query folder will blow up on it anyways
+                        return;
+                    }
 
                     // aggregates are allowed
-                    if (Functions.isAggregate(attributeRefs.getOrDefault(e, e))) {
+                    if (Functions.isAggregate(e)) {
                         return;
                     }
 
@@ -341,7 +348,10 @@ public final class Verifier {
                     //
                     // Also, make sure to compare attributes directly
                     if (e.anyMatch(expression -> Expressions.anyMatch(groupingAndMatchingAggregatesAliases,
-                        g -> expression.semanticEquals(expression instanceof Attribute ? Expressions.attribute(g) : g)))) {
+                        g -> {
+                            Expression resolvedG = attributeRefs.getOrDefault(g, g);
+                            return expression.semanticEquals(expression instanceof Attribute ? Expressions.attribute(resolvedG) : resolvedG);
+                        }))) {
                         return;
                     }
 

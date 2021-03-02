@@ -130,13 +130,10 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
                 new ReplaceCountInLocalRelation()
                 );
 
-        Batch refs = new Batch("Replace References", Limiter.ONCE,
-                new ReplaceReferenceAttributeWithSource()
-                );
-
         Batch operators = new Batch("Operator Optimization",
                 // combining
                 new CombineProjections(),
+                new ReplaceReferenceAttributeWithSource(),
                 // folding
                 new ReplaceFoldableAttributes(),
                 new FoldNull(),
@@ -183,7 +180,7 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
                 CleanAliases.INSTANCE,
                 new SetAsOptimized());
 
-        return Arrays.asList(substitutions, refs, operators, aggregate, local, label);
+        return Arrays.asList(substitutions, operators, aggregate, local, label);
     }
 
     static class RewritePivot extends OptimizerRule<Pivot> {
@@ -529,12 +526,12 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
                 if (child instanceof Project) {
                     Project p = (Project) child;
                     // eliminate lower project but first replace the aliases in the upper one
-                    return new Project(p.source(), p.child(), combineProjections(project.projections(), p.projections()));
+                    return new Project(p.source(), p.child(), resolveAliases(project.projections(), p.projections()));
                 }
 
                 if (child instanceof Aggregate) {
                     Aggregate a = (Aggregate) child;
-                    return new Aggregate(a.source(), a.child(), a.groupings(), combineProjections(project.projections(), a.aggregates()));
+                    return new Aggregate(a.source(), a.child(), a.groupings(), resolveAliases(project.projections(), a.aggregates()));
                 }
 
                 // if the pivot custom columns are not used, convert the project + pivot into a GROUP BY/Aggregate
@@ -550,7 +547,11 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
                 Aggregate a = (Aggregate) plan;
                 if (child instanceof Project) {
                     Project p = (Project) child;
-                    return new Aggregate(a.source(), p.child(), a.groupings(), combineProjections(a.aggregates(), p.projections()));
+                    // TODO the a.groupings() are wrong, they should be resolved against the projections
+                    // TODO what if there is a Filter in-between the two?
+                    // TODO what if there are two aggregates?
+                    return new Aggregate(a.source(), p.child(), resolveAliases(a.groupings(), p.projections()), 
+                        resolveAliases(a.aggregates(), p.projections()));
                 }
             }
             // TODO: add rule for combining Pivot with underlying project
@@ -560,7 +561,8 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
         // normally only the upper projections should survive but since the lower list might have aliases definitions
         // that might be reused by the upper one, these need to be replaced.
         // for example an alias defined in the lower list might be referred in the upper - without replacing it the alias becomes invalid
-        private List<NamedExpression> combineProjections(List<? extends NamedExpression> upper, List<? extends NamedExpression> lower) {
+        @SuppressWarnings("unchecked")
+        private <T extends Expression> List<T> resolveAliases(List<? extends Expression> upper, List<? extends NamedExpression> lower) {
 
             //TODO: this need rewriting when moving functions of NamedExpression
 
@@ -573,13 +575,13 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
             }
 
             AttributeMap<NamedExpression> aliases = aliasesBuilder.build();
-            List<NamedExpression> replaced = new ArrayList<>();
+            List<T> replaced = new ArrayList<>();
 
             // replace any matching attribute with a lower alias (if there's a match)
             // but clean-up non-top aliases at the end
-            for (NamedExpression ne : upper) {
+            for (Expression ne : upper) {
                 NamedExpression replacedExp = (NamedExpression) ne.transformUp(Attribute.class, a -> aliases.getOrDefault(a, a));
-                replaced.add((NamedExpression) CleanAliases.trimNonTopLevelAliases(replacedExp));
+                replaced.add((T) CleanAliases.trimNonTopLevelAliases(replacedExp));
             }
             return replaced;
         }

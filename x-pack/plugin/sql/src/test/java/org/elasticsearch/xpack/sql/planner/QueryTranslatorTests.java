@@ -2674,7 +2674,9 @@ public class QueryTranslatorTests extends ESTestCase {
             ")" +
             "ORDER BY g DESC");
         optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) GROUP BY j");
+        optimizeAndPlan("SELECT i AS j FROM ( SELECT int AS i FROM test) WHERE j < 2 GROUP BY j");
         optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) GROUP BY k");
+        optimizeAndPlan("SELECT j AS k FROM (SELECT i AS j FROM ( SELECT int AS i FROM test)) WHERE 0 < j AND k < 2 GROUP BY k");
         optimizeAndPlan("SELECT g FROM (SELECT date AS f, int AS g FROM test) WHERE g IS NOT NULL GROUP BY g ORDER BY g ASC");
     }
     
