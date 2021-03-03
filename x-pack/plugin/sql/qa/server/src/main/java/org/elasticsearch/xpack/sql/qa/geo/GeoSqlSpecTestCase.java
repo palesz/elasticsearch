@@ -93,7 +93,7 @@ public abstract class GeoSqlSpecTestCase extends SpecBaseIntegrationTestCase {
     // TODO: use UTC for now until deciding on a strategy for handling date extraction
     @Override
     protected Properties connectionProperties() {
-        Properties connectionProperties = new Properties();
+        Properties connectionProperties = super.connectionProperties();
         connectionProperties.setProperty(JdbcConfiguration.TIME_ZONE, "UTC");
         return connectionProperties;
     }

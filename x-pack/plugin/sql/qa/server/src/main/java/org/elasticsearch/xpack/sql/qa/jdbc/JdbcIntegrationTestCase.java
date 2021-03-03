@@ -113,6 +113,7 @@ public abstract class JdbcIntegrationTestCase extends ESRestTestCase {
         connectionProperties.put(JDBC_TIMEZONE, randomKnownTimeZone());
         // in the tests, don't be lenient towards multi values
         connectionProperties.put("field.multi.value.leniency", "false");
+        connectionProperties.put("optimize", String.valueOf(randomBoolean()));
         return connectionProperties;
     }
 
