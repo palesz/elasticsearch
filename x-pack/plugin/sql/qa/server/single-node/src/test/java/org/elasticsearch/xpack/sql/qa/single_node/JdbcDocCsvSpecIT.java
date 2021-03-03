@@ -79,6 +79,8 @@ public class JdbcDocCsvSpecIT extends SpecBaseIntegrationTestCase {
 
     @Override
     protected final void doTest() throws Throwable {
+        randomnessVariation(testName.length());
+        
         try (Connection csv = csvConnection(testCase); Connection es = esJdbc()) {
 
             // pass the testName as table for debugging purposes (in case the underlying reader is missing)
