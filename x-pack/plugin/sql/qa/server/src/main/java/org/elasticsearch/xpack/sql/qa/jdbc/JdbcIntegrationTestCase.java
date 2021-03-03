@@ -104,6 +104,12 @@ public abstract class JdbcIntegrationTestCase extends ESRestTestCase {
             throw new RuntimeException(e);
         }
     }
+    
+    protected void randomnessVariation(int cnt) {
+        for (int i = 0; i < cnt; i++) {
+            randomBoolean();
+        }
+    }
 
     /**
      * The properties used to build the connection.

@@ -95,6 +95,9 @@ public abstract class SqlSpecTestCase extends SpecBaseIntegrationTestCase {
             Assume.assumeTrue(LocalDateTime.now(ZoneId.of("UTC")).getMinute() <= TZSYNC_MINUTE_THRESHOLD);
         }
 
+        // add some variation to the randomness per testcases
+        randomnessVariation(testName.length());
+        
         try (Connection h2 = H2.get(); Connection es = esJdbc()) {
 
             ResultSet expected, elasticResults;

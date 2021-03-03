@@ -96,6 +96,7 @@ import org.elasticsearch.xpack.sql.type.SqlDataTypes;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1212,5 +1213,19 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
         protected LogicalPlan rule(LogicalPlan plan) {
             return plan;
         }
+    }
+    
+    private static Optimizer NOOP_INSTANCE;
+    
+    public static Optimizer noop() {
+        if (NOOP_INSTANCE == null) {
+            NOOP_INSTANCE = new Optimizer() {
+                @Override
+                protected Iterable<Batch> batches() {
+                    return Collections.emptyList();
+                }
+            };
+        }
+        return NOOP_INSTANCE;
     }
 }

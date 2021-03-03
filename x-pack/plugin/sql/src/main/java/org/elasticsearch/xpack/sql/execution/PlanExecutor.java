@@ -64,7 +64,8 @@ public class PlanExecutor {
     }
 
     private SqlSession newSession(SqlConfiguration cfg) {
-        return new SqlSession(cfg, client, functionRegistry, indexResolver, preAnalyzer, verifier, optimizer, planner, this);
+        Optimizer optimizerToUse = cfg.optimize() ? this.optimizer : Optimizer.noop();
+        return new SqlSession(cfg, client, functionRegistry, indexResolver, preAnalyzer, verifier, optimizerToUse, planner, this);
     }
 
     public void searchSource(SqlConfiguration cfg, String sql, List<SqlTypedParamValue> params,

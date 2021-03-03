@@ -45,6 +45,8 @@ public abstract class CsvSpecTestCase extends SpecBaseIntegrationTestCase {
     protected final void doTest() throws Throwable {
         // Run the time tests always in UTC
         // TODO: https://github.com/elastic/elasticsearch/issues/40779
+        // add some variation to the randomness per testcases
+        randomnessVariation(testCase.query.length());
         try (Connection csv = csvConnection(testCase); Connection es = esJdbc()) {
             executeAndAssert(csv, es);
         }
