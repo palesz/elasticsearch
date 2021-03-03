@@ -27,6 +27,7 @@ import static org.elasticsearch.xpack.sql.proto.Protocol.FIELD_MULTI_VALUE_LENIE
 import static org.elasticsearch.xpack.sql.proto.Protocol.FILTER_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.INDEX_INCLUDE_FROZEN_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.MODE_NAME;
+import static org.elasticsearch.xpack.sql.proto.Protocol.OPTIMIZE_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.PAGE_TIMEOUT_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.PARAMS_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.QUERY_NAME;
@@ -155,12 +156,12 @@ public class SqlQueryRequest extends AbstractSqlRequest {
         return indexIncludeFrozen;
     }
     
-    public boolean optimize() {
-        return optimize;
-    }
-
     public Boolean binaryCommunication() {
         return binaryCommunication;
+    }
+
+    public boolean optimize() {
+        return optimize;
     }
 
     @Override
@@ -186,13 +187,14 @@ public class SqlQueryRequest extends AbstractSqlRequest {
                 && Objects.equals(cursor, that.cursor)
                 && fieldMultiValueLeniency == that.fieldMultiValueLeniency
                 && indexIncludeFrozen == that.indexIncludeFrozen
-                && Objects.equals(binaryCommunication,  that.binaryCommunication);
+                && Objects.equals(binaryCommunication,  that.binaryCommunication)
+                && optimize == that.optimize;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(super.hashCode(), query, zoneId, fetchSize, requestTimeout, pageTimeout,
-                filter, columnar, cursor, fieldMultiValueLeniency, indexIncludeFrozen, binaryCommunication);
+                filter, columnar, cursor, fieldMultiValueLeniency, indexIncludeFrozen, binaryCommunication, optimize);
     }
 
     @Override
@@ -238,6 +240,9 @@ public class SqlQueryRequest extends AbstractSqlRequest {
         }
         if (indexIncludeFrozen) {
             builder.field(INDEX_INCLUDE_FROZEN_NAME, indexIncludeFrozen);
+        }
+        if (optimize == false) {
+            builder.field(OPTIMIZE_NAME, optimize);
         }
         if (binaryCommunication != null) {
             builder.field(BINARY_FORMAT_NAME, binaryCommunication);

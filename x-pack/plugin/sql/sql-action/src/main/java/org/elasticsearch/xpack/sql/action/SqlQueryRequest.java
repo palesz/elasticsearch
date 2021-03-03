@@ -49,7 +49,7 @@ public class SqlQueryRequest extends AbstractSqlQueryRequest {
         PARSER.declareBoolean(SqlQueryRequest::fieldMultiValueLeniency, FIELD_MULTI_VALUE_LENIENCY);
         PARSER.declareBoolean(SqlQueryRequest::indexIncludeFrozen, INDEX_INCLUDE_FROZEN);
         PARSER.declareBoolean(SqlQueryRequest::binaryCommunication, BINARY_COMMUNICATION);
-        PARSER.declareBoolean(SqlQueryRequest::binaryCommunication, OPTIMIZE);
+        PARSER.declareBoolean(SqlQueryRequest::optimize, OPTIMIZE);
     }
 
     private String cursor = "";
