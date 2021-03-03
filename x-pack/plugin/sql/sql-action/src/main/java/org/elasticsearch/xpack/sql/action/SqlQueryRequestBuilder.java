@@ -27,15 +27,15 @@ public class SqlQueryRequestBuilder extends ActionRequestBuilder<SqlQueryRequest
     public SqlQueryRequestBuilder(ElasticsearchClient client, SqlQueryAction action) {
         this(client, action, "", Collections.emptyList(), null, Protocol.TIME_ZONE, Protocol.FETCH_SIZE, Protocol.REQUEST_TIMEOUT,
             Protocol.PAGE_TIMEOUT, false, "", new RequestInfo(Mode.PLAIN), Protocol.FIELD_MULTI_VALUE_LENIENCY,
-            Protocol.INDEX_INCLUDE_FROZEN);
+            Protocol.INDEX_INCLUDE_FROZEN, Protocol.OPTIMIZE);
     }
 
     public SqlQueryRequestBuilder(ElasticsearchClient client, SqlQueryAction action, String query, List<SqlTypedParamValue> params,
             QueryBuilder filter, ZoneId zoneId, int fetchSize, TimeValue requestTimeout,
             TimeValue pageTimeout, boolean columnar, String nextPageInfo, RequestInfo requestInfo,
-            boolean multiValueFieldLeniency, boolean indexIncludeFrozen) {
+            boolean multiValueFieldLeniency, boolean indexIncludeFrozen, boolean optimize) {
         super(client, action, new SqlQueryRequest(query, params, filter, zoneId, fetchSize, requestTimeout, pageTimeout, columnar,
-                nextPageInfo, requestInfo, multiValueFieldLeniency, indexIncludeFrozen));
+                nextPageInfo, requestInfo, multiValueFieldLeniency, indexIncludeFrozen, optimize));
     }
 
     public SqlQueryRequestBuilder query(String query) {
@@ -95,6 +95,11 @@ public class SqlQueryRequestBuilder extends ActionRequestBuilder<SqlQueryRequest
 
     public SqlQueryRequestBuilder multiValueFieldLeniency(boolean lenient) {
         request.fieldMultiValueLeniency(lenient);
+        return this;
+    }
+    
+    public SqlQueryRequestBuilder optimize(boolean optimize) {
+        request.optimize(optimize);
         return this;
     }
 }

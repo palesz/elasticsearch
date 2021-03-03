@@ -231,7 +231,7 @@ public class SysColumnsTests extends ESTestCase {
 
     private int executeCommandInOdbcModeAndCountRows(String sql) {
         final SqlConfiguration config = new SqlConfiguration(DateUtils.UTC, randomIntBetween(1, 15), Protocol.REQUEST_TIMEOUT,
-            Protocol.PAGE_TIMEOUT, null, Mode.ODBC, null, SqlVersion.fromId(Version.CURRENT.id), null, null, false, false);
+            Protocol.PAGE_TIMEOUT, null, Mode.ODBC, null, SqlVersion.fromId(Version.CURRENT.id), null, null, false, false, true);
         Tuple<Command, SqlSession> tuple = sql(sql, emptyList(), config, MAPPING1);
 
         int[] rowCount = {0};
@@ -256,7 +256,7 @@ public class SysColumnsTests extends ESTestCase {
     private void executeCommand(String sql, List<SqlTypedParamValue> params, Mode mode, Consumer<SchemaRowSet> consumer,
                                 Map<String, EsField> mapping) {
         final SqlConfiguration config = new SqlConfiguration(DateUtils.UTC, Protocol.FETCH_SIZE, Protocol.REQUEST_TIMEOUT,
-            Protocol.PAGE_TIMEOUT, null, mode, null, SqlVersion.fromId(Version.CURRENT.id), null, null, false, false);
+            Protocol.PAGE_TIMEOUT, null, mode, null, SqlVersion.fromId(Version.CURRENT.id), null, null, false, false, true);
         Tuple<Command, SqlSession> tuple = sql(sql, params, config, mapping);
 
         tuple.v1().execute(tuple.v2(), wrap(p -> consumer.accept((SchemaRowSet) p.rowSet()), ex -> fail(ex.getMessage())));

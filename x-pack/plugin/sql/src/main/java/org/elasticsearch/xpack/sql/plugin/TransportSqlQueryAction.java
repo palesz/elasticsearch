@@ -89,7 +89,7 @@ public class TransportSqlQueryAction extends HandledTransportAction<SqlQueryRequ
         // the rest having default values (since the query is already created)
         SqlConfiguration cfg = new SqlConfiguration(request.zoneId(), request.fetchSize(), request.requestTimeout(), request.pageTimeout(),
                 request.filter(), request.mode(), request.clientId(), request.version(), username, clusterName,
-                request.fieldMultiValueLeniency(), request.indexIncludeFrozen());
+                request.fieldMultiValueLeniency(), request.indexIncludeFrozen(), request.optimize());
 
         if (Strings.hasText(request.cursor()) == false) {
             executeRequestWithRetryAttempt(clusterService, listener::onFailure,

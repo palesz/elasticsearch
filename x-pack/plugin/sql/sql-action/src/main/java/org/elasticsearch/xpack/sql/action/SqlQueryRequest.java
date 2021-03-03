@@ -30,6 +30,7 @@ import static org.elasticsearch.xpack.sql.proto.Protocol.BINARY_FORMAT_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.COLUMNAR_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.FIELD_MULTI_VALUE_LENIENCY_NAME;
 import static org.elasticsearch.xpack.sql.proto.Protocol.INDEX_INCLUDE_FROZEN_NAME;
+import static org.elasticsearch.xpack.sql.proto.Protocol.OPTIMIZE_NAME;
 
 /**
  * Request to perform an sql query
@@ -40,6 +41,7 @@ public class SqlQueryRequest extends AbstractSqlQueryRequest {
     static final ParseField FIELD_MULTI_VALUE_LENIENCY = new ParseField(FIELD_MULTI_VALUE_LENIENCY_NAME);
     static final ParseField INDEX_INCLUDE_FROZEN = new ParseField(INDEX_INCLUDE_FROZEN_NAME);
     static final ParseField BINARY_COMMUNICATION = new ParseField(BINARY_FORMAT_NAME);
+    static final ParseField OPTIMIZE = new ParseField(OPTIMIZE_NAME);
 
     static {
         PARSER.declareString(SqlQueryRequest::cursor, CURSOR);
@@ -47,6 +49,7 @@ public class SqlQueryRequest extends AbstractSqlQueryRequest {
         PARSER.declareBoolean(SqlQueryRequest::fieldMultiValueLeniency, FIELD_MULTI_VALUE_LENIENCY);
         PARSER.declareBoolean(SqlQueryRequest::indexIncludeFrozen, INDEX_INCLUDE_FROZEN);
         PARSER.declareBoolean(SqlQueryRequest::binaryCommunication, BINARY_COMMUNICATION);
+        PARSER.declareBoolean(SqlQueryRequest::binaryCommunication, OPTIMIZE);
     }
 
     private String cursor = "";
@@ -60,6 +63,7 @@ public class SqlQueryRequest extends AbstractSqlQueryRequest {
 
     private boolean fieldMultiValueLeniency = Protocol.FIELD_MULTI_VALUE_LENIENCY;
     private boolean indexIncludeFrozen = Protocol.INDEX_INCLUDE_FROZEN;
+    private boolean optimize = Protocol.OPTIMIZE;
 
     public SqlQueryRequest() {
         super();
@@ -67,12 +71,14 @@ public class SqlQueryRequest extends AbstractSqlQueryRequest {
 
     public SqlQueryRequest(String query, List<SqlTypedParamValue> params, QueryBuilder filter, ZoneId zoneId,
                            int fetchSize, TimeValue requestTimeout, TimeValue pageTimeout, Boolean columnar,
-                           String cursor, RequestInfo requestInfo, boolean fieldMultiValueLeniency, boolean indexIncludeFrozen) {
+                           String cursor, RequestInfo requestInfo, boolean fieldMultiValueLeniency, boolean indexIncludeFrozen,
+                           boolean optimize) {
         super(query, params, filter, zoneId, fetchSize, requestTimeout, pageTimeout, requestInfo);
         this.cursor = cursor;
         this.columnar = columnar;
         this.fieldMultiValueLeniency = fieldMultiValueLeniency;
         this.indexIncludeFrozen = indexIncludeFrozen;
+        this.optimize = optimize;
     }
 
     @Override
@@ -134,6 +140,15 @@ public class SqlQueryRequest extends AbstractSqlQueryRequest {
 
     public boolean indexIncludeFrozen() {
         return indexIncludeFrozen;
+    }
+    
+    public SqlQueryRequest optimize(boolean optimize) {
+        this.optimize = optimize;
+        return this;
+    }
+    
+    public boolean optimize() {
+        return optimize;
     }
 
     public SqlQueryRequest binaryCommunication(boolean binaryCommunication) {

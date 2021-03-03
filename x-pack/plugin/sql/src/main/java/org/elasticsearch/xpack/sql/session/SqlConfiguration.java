@@ -26,6 +26,7 @@ public class SqlConfiguration extends org.elasticsearch.xpack.ql.session.Configu
     private final SqlVersion version;
     private final boolean multiValueFieldLeniency;
     private final boolean includeFrozenIndices;
+    private final boolean optimize;
 
     @Nullable
     private QueryBuilder filter;
@@ -34,7 +35,8 @@ public class SqlConfiguration extends org.elasticsearch.xpack.ql.session.Configu
                          Mode mode, String clientId, SqlVersion version,
                          String username, String clusterName,
                          boolean multiValueFieldLeniency,
-                         boolean includeFrozen) {
+                         boolean includeFrozen,
+                         boolean optimize) {
 
         super(zi, username, clusterName);
 
@@ -47,6 +49,7 @@ public class SqlConfiguration extends org.elasticsearch.xpack.ql.session.Configu
         this.version = version != null ? version : SqlVersion.fromId(Version.CURRENT.id);
         this.multiValueFieldLeniency = multiValueFieldLeniency;
         this.includeFrozenIndices = includeFrozen;
+        this.optimize = optimize;
     }
 
     public int pageSize() {
@@ -82,5 +85,9 @@ public class SqlConfiguration extends org.elasticsearch.xpack.ql.session.Configu
 
     public SqlVersion version() {
         return version;
+    }
+    
+    public boolean optimize() {
+        return optimize;
     }
 }

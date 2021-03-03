@@ -33,6 +33,7 @@ public final class Protocol {
     public static final String BINARY_FORMAT_NAME = "binary_format";
     public static final String FIELD_MULTI_VALUE_LENIENCY_NAME = "field_multi_value_leniency";
     public static final String INDEX_INCLUDE_FROZEN_NAME = "index_include_frozen";
+    public static final String OPTIMIZE_NAME = "optimize";
     // params
     public static final String PARAMS_NAME = "params";
     public static final String PARAMS_TYPE_NAME = "type";
@@ -51,6 +52,7 @@ public final class Protocol {
     public static final TimeValue PAGE_TIMEOUT = TimeValue.timeValueSeconds(45);
     public static final boolean FIELD_MULTI_VALUE_LENIENCY = false;
     public static final boolean INDEX_INCLUDE_FROZEN = false;
+    public static final boolean OPTIMIZE = true;
 
     /*
      * Using the Boolean object here so that SqlTranslateRequest to set this to null (since it doesn't need a "columnar" or
