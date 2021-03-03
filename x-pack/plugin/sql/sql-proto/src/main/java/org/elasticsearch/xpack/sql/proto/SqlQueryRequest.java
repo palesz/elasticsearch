@@ -52,11 +52,12 @@ public class SqlQueryRequest extends AbstractSqlRequest {
     private final boolean fieldMultiValueLeniency;
     private final boolean indexIncludeFrozen;
     private final Boolean binaryCommunication;
+    private final boolean optimize;
 
     public SqlQueryRequest(String query, List<SqlTypedParamValue> params, ZoneId zoneId, int fetchSize,
                            TimeValue requestTimeout, TimeValue pageTimeout, ToXContent filter, Boolean columnar,
                            String cursor, RequestInfo requestInfo, boolean fieldMultiValueLeniency, boolean indexIncludeFrozen,
-                           Boolean binaryCommunication) {
+                           Boolean binaryCommunication, boolean optimize) {
         super(requestInfo);
         this.query = query;
         this.params = params;
@@ -70,12 +71,14 @@ public class SqlQueryRequest extends AbstractSqlRequest {
         this.fieldMultiValueLeniency = fieldMultiValueLeniency;
         this.indexIncludeFrozen = indexIncludeFrozen;
         this.binaryCommunication = binaryCommunication;
+        this.optimize = optimize;
     }
 
     public SqlQueryRequest(String cursor, TimeValue requestTimeout, TimeValue pageTimeout, RequestInfo requestInfo,
                            boolean binaryCommunication) {
         this("", Collections.emptyList(), Protocol.TIME_ZONE, Protocol.FETCH_SIZE, requestTimeout, pageTimeout,
-                null, false, cursor, requestInfo, Protocol.FIELD_MULTI_VALUE_LENIENCY, Protocol.INDEX_INCLUDE_FROZEN, binaryCommunication);
+                null, false, cursor, requestInfo, Protocol.FIELD_MULTI_VALUE_LENIENCY, Protocol.INDEX_INCLUDE_FROZEN, binaryCommunication,
+                Protocol.OPTIMIZE);
     }
 
     /**
@@ -150,6 +153,10 @@ public class SqlQueryRequest extends AbstractSqlRequest {
 
     public boolean indexIncludeFrozen() {
         return indexIncludeFrozen;
+    }
+    
+    public boolean optimize() {
+        return optimize;
     }
 
     public Boolean binaryCommunication() {

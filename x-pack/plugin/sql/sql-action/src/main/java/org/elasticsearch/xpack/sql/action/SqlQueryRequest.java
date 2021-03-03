@@ -204,7 +204,7 @@ public class SqlQueryRequest extends AbstractSqlQueryRequest {
         // This is needed just to test round-trip compatibility with proto.SqlQueryRequest
         return new org.elasticsearch.xpack.sql.proto.SqlQueryRequest(query(), params(), zoneId(), fetchSize(), requestTimeout(),
                 pageTimeout(), filter(), columnar(), cursor(), requestInfo(), fieldMultiValueLeniency(), indexIncludeFrozen(),
-                binaryCommunication()).toXContent(builder, params);
+                binaryCommunication(), optimize).toXContent(builder, params);
     }
 
     public static SqlQueryRequest fromXContent(XContentParser parser) {
