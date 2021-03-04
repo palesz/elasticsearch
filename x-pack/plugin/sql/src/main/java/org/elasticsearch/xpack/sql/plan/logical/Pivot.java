@@ -7,6 +7,7 @@
 
 package org.elasticsearch.xpack.sql.plan.logical;
 
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.xpack.ql.capabilities.Resolvables;
 import org.elasticsearch.xpack.ql.expression.Alias;
 import org.elasticsearch.xpack.ql.expression.Attribute;
@@ -57,7 +58,7 @@ public class Pivot extends UnaryPlan {
             AttributeSet columnSet = Expressions.references(singletonList(column));
             // grouping can happen only on "primitive" fields, thus exclude multi-fields or nested docs
             // the verifier enforces this rule so it does not catch folks by surprise
-            grouping = new ArrayList<>(new AttributeSet(Expressions.onlyPrimitiveFieldAttributes(child().output()))
+            grouping = CollectionUtils.iterableAsArrayList(new AttributeSet(Expressions.onlyPrimitiveFieldAttributes(child().output()))
                     // make sure to have the column as the last entry (helps with translation) so substract it
                     .subtract(columnSet)
                     .subtract(Expressions.references(aggregates))
@@ -157,7 +158,7 @@ public class Pivot extends UnaryPlan {
     @Override
     public List<Attribute> output() {
         if (output == null) {
-            output = new ArrayList<>(groupingSet()
+            output = CollectionUtils.iterableAsArrayList(groupingSet()
                     .subtract(Expressions.references(singletonList(column)))
                     .combine(valuesOutput()));
         }

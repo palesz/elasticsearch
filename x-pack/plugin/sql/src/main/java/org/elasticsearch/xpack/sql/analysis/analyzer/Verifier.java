@@ -75,7 +75,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.elasticsearch.xpack.ql.analyzer.VerifierChecks.checkFilterConditionType;
 import static org.elasticsearch.xpack.ql.common.Failure.fail;
 import static org.elasticsearch.xpack.ql.type.DataTypes.BINARY;
-import static org.elasticsearch.xpack.ql.util.CollectionUtils.combine;
+import static org.elasticsearch.xpack.ql.util.CollectionUtils.appendToIterable;
 import static org.elasticsearch.xpack.sql.stats.FeatureMetric.COMMAND;
 import static org.elasticsearch.xpack.sql.stats.FeatureMetric.GROUPBY;
 import static org.elasticsearch.xpack.sql.stats.FeatureMetric.HAVING;
@@ -406,7 +406,7 @@ public final class Verifier {
 
         // resolve FunctionAttribute to backing functions
         if (e instanceof ReferenceAttribute) {
-            e = attributeRefs.get(e);
+            e = attributeRefs.getOrDefault(e, null);
         }
 
         // scalar functions can be a binary tree
@@ -579,7 +579,7 @@ public final class Verifier {
 
         // resolve FunctionAttribute to backing functions
         if (e instanceof ReferenceAttribute) {
-            e = attributeRefs.get(e);
+            e = attributeRefs.getOrDefault(e, null);
         }
 
         // scalar functions can be a binary tree
@@ -808,7 +808,7 @@ public final class Verifier {
     private static void checkPivot(LogicalPlan p, Set<Failure> localFailures, AttributeMap<Expression> attributeRefs) {
         p.forEachDown(Pivot.class, pv -> {
             // check only exact fields are used inside PIVOTing
-            if (onlyExactFields(combine(pv.groupingSet(), pv.column()), localFailures) == false
+            if (onlyExactFields(appendToIterable(pv.groupingSet(), pv.column()), localFailures) == false
                 || onlyRawFields(pv.groupingSet(), localFailures, attributeRefs) == false) {
                 // if that is not the case, no need to do further validation since the declaration is fundamentally wrong
                 return;

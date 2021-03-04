@@ -12,11 +12,8 @@ import org.elasticsearch.xpack.ql.type.DataTypes;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
-import static java.util.stream.Collectors.toList;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
@@ -54,11 +51,9 @@ public class AttributeMapTests extends ESTestCase {
             mapBuilder.put(a.toAttribute(), a.child());
         }
         AttributeMap<Expression> newAttributeMap = mapBuilder.build();
-
-        assertTrue(newAttributeMap.containsKey(param1.toAttribute()));
-        assertTrue(newAttributeMap.get(param1.toAttribute()) == param1.child());
-        assertTrue(newAttributeMap.containsKey(param2.toAttribute()));
-        assertTrue(newAttributeMap.get(param2.toAttribute()) == param2.child());
+        
+        assertTrue(newAttributeMap.getOrDefault(param1.toAttribute(), null) == param1.child());
+        assertTrue(newAttributeMap.getOrDefault(param2.toAttribute(), null) == param2.child());
     }
 
     private Alias createIntParameterAlias(int index, int value) {
@@ -83,13 +78,9 @@ public class AttributeMapTests extends ESTestCase {
         AttributeMap<String> m = builder.build();
         assertThat(m.size(), is(3));
         assertThat(m.isEmpty(), is(false));
-
-        Attribute one = m.keySet().iterator().next();
-        assertThat(m.containsKey(one), is(true));
-        assertThat(m.containsKey(a("one")), is(false));
-        assertThat(m.containsValue("one"), is(true));
-        assertThat(m.containsValue("on"), is(false));
+        
         assertThat(m.attributeNames(), contains("one", "two", "three"));
+        assertThat(m.values().size(), is(3));
         assertThat(m.values(), contains("one", "two", "three"));
     }
 
@@ -99,10 +90,8 @@ public class AttributeMapTests extends ESTestCase {
         assertThat(m.size(), is(1));
         assertThat(m.isEmpty(), is(false));
 
-        assertThat(m.containsKey(one), is(true));
-        assertThat(m.containsKey(a("one")), is(false));
-        assertThat(m.containsValue("one"), is(true));
-        assertThat(m.containsValue("on"), is(false));
+        assertThat(m.values().size(), is(1));
+        assertThat(m.values(), contains("one"));
     }
 
     public void testSubtract() {
@@ -161,25 +150,6 @@ public class AttributeMapTests extends ESTestCase {
     public void testValues() {
         AttributeMap<String> m = threeMap();
         Collection<String> values = m.values();
-
-        assertThat(values, hasSize(3));
-        assertThat(values, contains("one", "two", "three"));
-    }
-
-    public void testEntrySet() {
-        Attribute one = a("one");
-        Attribute two = a("two");
-        Attribute three = a("three");
-
-        Set<Entry<Attribute, String>> set = threeMap().entrySet();
-
-        assertThat(set, hasSize(3));
-
-        List<Attribute> keys = set.stream().map(Map.Entry::getKey).collect(toList());
-        List<String> values = set.stream().map(Map.Entry::getValue).collect(toList());
-
-        assertThat(keys, hasSize(3));
-
 
         assertThat(values, hasSize(3));
         assertThat(values, contains("one", "two", "three"));

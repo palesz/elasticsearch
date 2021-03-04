@@ -63,18 +63,6 @@ public final class Expressions {
         return list;
     }
 
-    public static AttributeMap<Expression> asAttributeMap(List<? extends NamedExpression> named) {
-        if (named.isEmpty()) {
-            return AttributeMap.emptyAttributeMap();
-        }
-
-        AttributeMap<Expression> map = new AttributeMap<>();
-        for (NamedExpression exp : named) {
-            map.add(exp.toAttribute(), exp);
-        }
-        return map;
-    }
-
     public static boolean anyMatch(List<? extends Expression> exps, Predicate<? super Expression> predicate) {
         for (Expression exp : exps) {
             if (exp.anyMatch(predicate)) {
@@ -174,7 +162,7 @@ public final class Expressions {
         return aliases;
     }
 
-    public static boolean hasReferenceAttribute(Collection<Attribute> output) {
+    public static boolean hasReferenceAttribute(Iterable<Attribute> output) {
         for (Attribute attribute : output) {
             if (attribute instanceof ReferenceAttribute) {
                 return true;

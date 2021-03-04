@@ -7,6 +7,7 @@
 package org.elasticsearch.xpack.sql.planner;
 
 import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.xpack.ql.execution.search.AggRef;
 import org.elasticsearch.xpack.ql.execution.search.FieldExtraction;
 import org.elasticsearch.xpack.ql.expression.Alias;
@@ -94,7 +95,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.elasticsearch.xpack.ql.util.CollectionUtils.combine;
+import static org.elasticsearch.xpack.ql.util.CollectionUtils.combineIterables;
 import static org.elasticsearch.xpack.sql.expression.function.grouping.Histogram.DAY_INTERVAL;
 import static org.elasticsearch.xpack.sql.expression.function.grouping.Histogram.MONTH_INTERVAL;
 import static org.elasticsearch.xpack.sql.expression.function.grouping.Histogram.YEAR_INTERVAL;
@@ -707,7 +708,7 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
 
                     // if it's a reference, get the target expression
                     if (orderExpression instanceof ReferenceAttribute) {
-                        orderExpression = qContainer.aliases().get(orderExpression);
+                        orderExpression = qContainer.aliases().getOrDefault(orderExpression, null);
                     }
                     String lookup = Expressions.id(orderExpression);
                     GroupByKey group = qContainer.findGroupForAgg(lookup);
@@ -798,7 +799,7 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
                 Pivot p = plan.pivot();
                 EsQueryExec fold = FoldAggregate
                         .fold(new AggregateExec(plan.source(), exec,
-                                new ArrayList<>(p.groupingSet()), combine(p.groupingSet(), p.aggregates())), exec);
+                            CollectionUtils.iterableAsArrayList(p.groupingSet()), combineIterables(p.groupingSet(), p.aggregates())), exec);
 
                 // replace the aggregate extractors with pivot specific extractors
                 // these require a reference to the pivoting column in order to compare the value
@@ -813,10 +814,8 @@ class QueryFolder extends RuleExecutor<PhysicalPlan> {
 
                 for (int i = startingIndex; i < fields.size(); i++) {
                     Tuple<FieldExtraction, String> tuple = fields.remove(i);
-                    for (Map.Entry<Attribute, Literal> entry : values.entrySet()) {
-                        fields.add(new Tuple<>(
-                                new PivotColumnRef(groupTuple.v1(), tuple.v1(), entry.getValue().value()), Expressions.id(entry.getKey())));
-                    }
+                    values.forEach((attr, literal) -> 
+                        fields.add(new Tuple<>(new PivotColumnRef(groupTuple.v1(), tuple.v1(), literal.value()), Expressions.id(attr))));
                     i += values.size();
                 }
 

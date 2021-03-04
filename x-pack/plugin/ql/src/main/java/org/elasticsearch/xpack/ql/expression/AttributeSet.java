@@ -6,15 +6,14 @@
  */
 package org.elasticsearch.xpack.ql.expression;
 
-import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class AttributeSet implements Set<Attribute> {
+public class AttributeSet implements Iterable<Attribute> {
 
     private static final AttributeMap<Object> EMPTY_DELEGATE = AttributeMap.emptyAttributeMap();
 
@@ -32,8 +31,8 @@ public class AttributeSet implements Set<Attribute> {
     public AttributeSet(Attribute attr) {
         delegate = new AttributeMap<>(attr, PRESENT);
     }
-
-    public AttributeSet(Collection<? extends Attribute> attr) {
+    
+    public AttributeSet(List<? extends Attribute> attr) {
         if (attr.isEmpty()) {
             delegate = EMPTY_DELEGATE;
         }
@@ -52,7 +51,7 @@ public class AttributeSet implements Set<Attribute> {
 
     // package protected - should be called through Expressions to cheaply create
     // a set from a collection of sets without too much copying
-    void addAll(AttributeSet other) {
+    protected void addAll(AttributeSet other) {
         delegate.addAll(other.delegate);
     }
 
@@ -81,29 +80,12 @@ public class AttributeSet implements Set<Attribute> {
         delegate.forEach((k, v) -> action.accept(k));
     }
 
-    @Override
     public int size() {
         return delegate.size();
     }
 
-    @Override
     public boolean isEmpty() {
         return delegate.isEmpty();
-    }
-
-    @Override
-    public boolean contains(Object o) {
-        return delegate.containsKey(o);
-    }
-
-    @Override
-    public boolean containsAll(Collection<?> c) {
-        for (Object o : c) {
-            if (delegate.containsKey(o) == false) {
-                return false;
-            }
-        }
-        return true;
     }
 
     @Override
@@ -112,63 +94,12 @@ public class AttributeSet implements Set<Attribute> {
     }
 
     @Override
-    public Object[] toArray() {
-        return delegate.keySet().toArray();
-    }
-
-    @Override
-    public <T> T[] toArray(T[] a) {
-        return delegate.keySet().toArray(a);
-    }
-
-    @Override
-    public boolean add(Attribute e) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean remove(Object o) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean addAll(Collection<? extends Attribute> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean retainAll(Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean removeAll(Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void clear() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Spliterator<Attribute> spliterator() {
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    public boolean removeIf(Predicate<? super Attribute> filter) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Stream<Attribute> stream() {
         return delegate.keySet().stream();
-    }
-
-    @Override
-    public Stream<Attribute> parallelStream() {
-        return delegate.keySet().parallelStream();
     }
 
     @Override

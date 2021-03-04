@@ -222,7 +222,7 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
             AttributeMap.Builder<Expression> builder = AttributeMap.builder();
             // collect aliases
             plan.forEachExpressionUp(Alias.class, a -> builder.put(a.toAttribute(), a.child()));
-            final Map<Attribute, Expression> collectRefs = builder.build();
+            final AttributeMap<Expression> collectRefs = builder.build();
             java.util.function.Function<ReferenceAttribute, Expression> replaceReference = r -> collectRefs.getOrDefault(r, r);
 
             plan = plan.transformUp(p -> {
@@ -300,7 +300,7 @@ public class Optimizer extends RuleExecutor<LogicalPlan> {
         private void findNested(Expression exp, AttributeMap<Function> functions, Consumer<FieldAttribute> onFind) {
             exp.forEachUp(e -> {
                 if (e instanceof ReferenceAttribute) {
-                    Function f = functions.get(e);
+                    Function f = functions.getOrDefault(e, null);
                     if (f != null) {
                         findNested(f, functions, onFind);
                     }

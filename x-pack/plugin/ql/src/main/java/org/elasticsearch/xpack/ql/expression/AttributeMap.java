@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
@@ -20,7 +21,7 @@ import static java.util.Collections.singletonMap;
 import static java.util.Collections.unmodifiableCollection;
 import static java.util.Collections.unmodifiableSet;
 
-public class AttributeMap<E> implements Map<Attribute, E> {
+public class AttributeMap<E> {
 
     static class AttributeWrapper {
 
@@ -144,14 +145,13 @@ public class AttributeMap<E> implements Map<Attribute, E> {
     private static final AttributeMap EMPTY = new AttributeMap<>();
 
     @SuppressWarnings("unchecked")
-    public static final <E> AttributeMap<E> emptyAttributeMap() {
+    public static <E> AttributeMap<E> emptyAttributeMap() {
         return EMPTY;
     }
 
     private final Map<AttributeWrapper, E> delegate;
     private Set<Attribute> keySet = null;
     private Collection<E> values = null;
-    private Set<Entry<Attribute, E>> entrySet = null;
 
     public AttributeMap() {
         delegate = new LinkedHashMap<>();
@@ -161,16 +161,16 @@ public class AttributeMap<E> implements Map<Attribute, E> {
         delegate = singletonMap(new AttributeWrapper(key), value);
     }
 
-    void add(Attribute key, E value) {
+    protected void add(Attribute key, E value) {
         delegate.put(new AttributeWrapper(key), value);
     }
 
     // a set from a collection of sets without (too much) copying
-    void addAll(AttributeMap<E> other) {
+    protected void addAll(AttributeMap<E> other) {
         delegate.putAll(other.delegate);
     }
-
-    public AttributeMap<E> combine(AttributeMap<E> other) {
+    
+    AttributeMap<E> combine(AttributeMap<E> other) {
         AttributeMap<E> combine = new AttributeMap<>();
         combine.addAll(this);
         combine.addAll(other);
@@ -178,7 +178,7 @@ public class AttributeMap<E> implements Map<Attribute, E> {
         return combine;
     }
 
-    public AttributeMap<E> subtract(AttributeMap<E> other) {
+    AttributeMap<E> subtract(AttributeMap<E> other) {
         AttributeMap<E> diff = new AttributeMap<>();
         for (Entry<AttributeWrapper, E> entry : this.delegate.entrySet()) {
             if (other.delegate.containsKey(entry.getKey()) == false) {
@@ -189,7 +189,7 @@ public class AttributeMap<E> implements Map<Attribute, E> {
         return diff;
     }
 
-    public AttributeMap<E> intersect(AttributeMap<E> other) {
+    AttributeMap<E> intersect(AttributeMap<E> other) {
         AttributeMap<E> smaller = (other.size() > size() ? this : other);
         AttributeMap<E> larger = (smaller == this ? other : this);
 
@@ -203,7 +203,7 @@ public class AttributeMap<E> implements Map<Attribute, E> {
         return intersect;
     }
 
-    public boolean subsetOf(AttributeMap<E> other) {
+    boolean subsetOf(AttributeMap<E> other) {
         if (this.size() > other.size()) {
             return false;
         }
@@ -216,7 +216,7 @@ public class AttributeMap<E> implements Map<Attribute, E> {
         return true;
     }
 
-    public Set<String> attributeNames() {
+    Set<String> attributeNames() {
         Set<String> s = new LinkedHashSet<>(size());
 
         for (AttributeWrapper aw : delegate.keySet()) {
@@ -225,67 +225,22 @@ public class AttributeMap<E> implements Map<Attribute, E> {
         return s;
     }
 
-    @Override
     public int size() {
         return delegate.size();
     }
 
-    @Override
     public boolean isEmpty() {
         return delegate.isEmpty();
     }
-
-    @Override
-    public boolean containsKey(Object key) {
-        if (key instanceof NamedExpression) {
-            return delegate.keySet().contains(new AttributeWrapper(((NamedExpression) key).toAttribute()));
-        }
-        return false;
-    }
-
-    @Override
-    public boolean containsValue(Object value) {
-        return delegate.values().contains(value);
-    }
-
-    @Override
-    public E get(Object key) {
-        if (key instanceof NamedExpression) {
-            return delegate.get(new AttributeWrapper(((NamedExpression) key).toAttribute()));
-        }
-        return null;
-    }
-
-    @Override
+    
     public E getOrDefault(Object key, E defaultValue) {
-        E e;
-        return (((e = get(key)) != null) || containsKey(key))
-            ? e
-            : defaultValue;
+        if (key instanceof NamedExpression) {
+            return delegate.getOrDefault(new AttributeWrapper(((NamedExpression) key).toAttribute()), defaultValue);
+        }
+        return defaultValue;
     }
 
-    @Override
-    public E put(Attribute key, E value) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public E remove(Object key) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void putAll(Map<? extends Attribute, ? extends E> m) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void clear() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Set<Attribute> keySet() {
+    protected Set<Attribute> keySet() {
         if (keySet == null) {
             keySet = new UnwrappingSet<>(delegate.keySet()) {
                 @Override
@@ -296,44 +251,14 @@ public class AttributeMap<E> implements Map<Attribute, E> {
         }
         return keySet;
     }
-
-    @Override
-    public Collection<E> values() {
+    
+    protected Collection<E> values() {
         if (values == null) {
             values = unmodifiableCollection(delegate.values());
         }
         return values;
     }
 
-    @Override
-    public Set<Entry<Attribute, E>> entrySet() {
-        if (entrySet == null) {
-            entrySet = new UnwrappingSet<>(delegate.entrySet()) {
-                @Override
-                protected Entry<Attribute, E> unwrap(final Entry<AttributeWrapper, E> next) {
-                    return new Entry<>() {
-                        @Override
-                        public Attribute getKey() {
-                            return next.getKey().attr;
-                        }
-
-                        @Override
-                        public E getValue() {
-                            return next.getValue();
-                        }
-
-                        @Override
-                        public E setValue(E value) {
-                            throw new UnsupportedOperationException();
-                        }
-                    };
-                }
-            };
-        }
-        return entrySet;
-    }
-
-    @Override
     public void forEach(BiConsumer<? super Attribute, ? super E> action) {
         delegate.forEach((k, v) -> action.accept(k.attr, v));
     }

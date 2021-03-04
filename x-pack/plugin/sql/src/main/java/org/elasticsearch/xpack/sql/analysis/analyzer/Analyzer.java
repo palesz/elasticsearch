@@ -78,6 +78,7 @@ import static java.util.stream.Collectors.toList;
 import static org.elasticsearch.xpack.ql.analyzer.AnalyzerRules.AnalyzerRule;
 import static org.elasticsearch.xpack.ql.analyzer.AnalyzerRules.BaseAnalyzerRule;
 import static org.elasticsearch.xpack.ql.util.CollectionUtils.combine;
+import static org.elasticsearch.xpack.ql.util.CollectionUtils.combineIterables;
 
 public class Analyzer extends RuleExecutor<LogicalPlan> {
     /**
@@ -638,7 +639,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                     AttributeMap.Builder<Expression> builder = AttributeMap.builder();
                     // collect aliases
                     child.forEachUp(p -> p.forEachExpressionUp(Alias.class, a -> builder.put(a.toAttribute(), a.child())));
-                    final Map<Attribute, Expression> collectRefs = builder.build();
+                    final AttributeMap<Expression> collectRefs = builder.build();
 
                     referencesStream = referencesStream.filter(r -> {
                         for (Attribute attr : child.outputSet()) {
@@ -756,7 +757,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
             if (plan instanceof Project) {
                 Project p = (Project) plan;
                 AttributeSet diff = missing.subtract(p.child().outputSet());
-                return new Project(p.source(), propagateMissing(p.child(), diff, failed), combine(p.projections(), missing));
+                return new Project(p.source(), propagateMissing(p.child(), diff, failed), combineIterables(p.projections(), missing));
             }
 
             if (plan instanceof Aggregate) {
@@ -777,7 +778,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                 if (failed.isEmpty() == false) {
                     return plan;
                 }
-                return new Aggregate(a.source(), a.child(), a.groupings(), combine(a.aggregates(), missing));
+                return new Aggregate(a.source(), a.child(), a.groupings(), combineIterables(a.aggregates(), missing));
             }
 
             // LeafPlans are tables and BinaryPlans are joins so pushing can only happen on unary
@@ -785,7 +786,7 @@ public class Analyzer extends RuleExecutor<LogicalPlan> {
                 return plan.replaceChildrenSameSize(singletonList(propagateMissing(((UnaryPlan) plan).child(), missing, failed)));
             }
 
-            failed.addAll(missing);
+            CollectionUtils.addAll(failed, missing);
             return plan;
         }
 

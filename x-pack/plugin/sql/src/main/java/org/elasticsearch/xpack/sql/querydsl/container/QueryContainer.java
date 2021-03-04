@@ -77,7 +77,7 @@ public class QueryContainer {
 
     // scalar function processors - recorded as functions get folded;
     // at scrolling, their inputs (leaves) get updated
-    private final AttributeMap<Pipe> scalarFunctions;
+    private AttributeMap<Pipe> scalarFunctions;
 
     private final Map<String, Sort> sort;
     private final int limit;
@@ -89,8 +89,6 @@ public class QueryContainer {
     // computed
     private Boolean aggsOnly;
     private Boolean customSort;
-    // associate Attributes with aliased FieldAttributes (since they map directly to ES fields)
-    private Map<Attribute, FieldAttribute> fieldAlias;
 
 
     public QueryContainer() {
@@ -312,16 +310,8 @@ public class QueryContainer {
     }
 
     private String aliasName(Attribute attr) {
-        if (fieldAlias == null) {
-            fieldAlias = new LinkedHashMap<>();
-            for (Map.Entry<Attribute, Expression> entry : aliases.entrySet()) {
-                if (entry.getValue() instanceof FieldAttribute) {
-                    fieldAlias.put(entry.getKey(), (FieldAttribute) entry.getValue());
-                }
-            }
-        }
-        FieldAttribute fa = fieldAlias.get(attr);
-        return fa != null ? fa.name() : attr.name();
+        Expression fa = aliases.getOrDefault(attr, null);
+        return fa instanceof FieldAttribute ? ((FieldAttribute)fa).name() : attr.name();
     }
 
     //
@@ -375,7 +365,11 @@ public class QueryContainer {
 
     // replace function/operators's input with references
     private Tuple<QueryContainer, FieldExtraction> resolvedTreeComputingRef(ScalarFunction function, Attribute attr) {
-        Pipe proc = scalarFunctions.computeIfAbsent(attr, v -> function.asPipe());
+        Pipe proc = null;
+        if ((proc = scalarFunctions.getOrDefault(attr, null)) == null) {
+            proc = function.asPipe();
+            scalarFunctions = AttributeMap.builder(scalarFunctions).put(attr, proc).build();
+        }
 
         // find the processor inputs (Attributes) and convert them into references
         // no need to promote them to the top since the container doesn't have to be aware
